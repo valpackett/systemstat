@@ -29,4 +29,10 @@ mod tests {
         assert!(mount.fs_mounted_on == "/");
     }
 
+    #[test]
+    fn test_networks() {
+        let networks = PlatformImpl.networks().unwrap();
+        assert!(networks.values().find(|n| n.name == "lo0").unwrap().addrs.len() > 0);
+    }
+
 }
