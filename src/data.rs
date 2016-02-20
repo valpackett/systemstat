@@ -1,3 +1,5 @@
+use std::net::{Ipv4Addr, Ipv6Addr};
+
 #[derive(Debug, Clone)]
 pub struct LoadAverage {
     pub one: f32,
@@ -14,5 +16,25 @@ pub struct Filesystem {
     pub name_max: u64,
     pub fs_type: String,
     pub fs_mounted_from: String,
-    pub fs_mounted_on: String
+    pub fs_mounted_on: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum IpAddr {
+    Empty,
+    Unsupported,
+    V4(Ipv4Addr),
+    V6(Ipv6Addr),
+}
+
+#[derive(Debug, Clone)]
+pub struct NetworkAddrs {
+    pub addr: IpAddr,
+    pub netmask: IpAddr,
+}
+
+#[derive(Debug, Clone)]
+pub struct Network {
+    pub name: String,
+    pub addrs: Vec<NetworkAddrs>,
 }
