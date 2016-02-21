@@ -1,16 +1,47 @@
+// You are likely to be eaten by a grue.
+
 use std::{io, path, ptr, mem, ffi, slice};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::collections::BTreeMap;
-use libc::{c_int, c_schar, c_uchar, uid_t,
+use libc::{c_void, c_int, c_schar, c_uchar, size_t, uid_t, sysctl, sysctlnametomib,
            getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in6, AF_INET, AF_INET6};
 use data::*;
 use super::common::*;
 
 pub struct PlatformImpl;
 
+lazy_static! {
+    static ref KERN_CP_TIMES: [c_int; 2] = {
+        let mut mib = [0, 0];
+        let mut sz: size_t = mib.len();
+        let s = ffi::CString::new("kern.cp_times").unwrap();
+        unsafe { sysctlnametomib(s.as_ptr(), &mut mib[0], &mut sz) };
+        mib
+    };
+
+    static ref CP_TIMES_SIZE: usize = {
+        let mut size: usize = 0;
+        unsafe { sysctl(&KERN_CP_TIMES[0], KERN_CP_TIMES.len() as u32,
+                        ptr::null_mut(), &mut size, ptr::null(), 0) };
+        size
+    };
+}
+
 impl Platform for PlatformImpl {
     fn new() -> Self {
         PlatformImpl
+    }
+
+    fn cpu_load(&self) -> io::Result<Vec<CPULoad>> {
+        let mut size = *CP_TIMES_SIZE;
+        let cpus = size / mem::size_of::<sysctl_cpu>();
+        let mut data: Vec<sysctl_cpu> = Vec::with_capacity(cpus);
+        unsafe { data.set_len(cpus) };
+        if unsafe { sysctl(&KERN_CP_TIMES[0], KERN_CP_TIMES.len() as u32,
+                           &mut data[0] as *mut _ as *mut c_void, &mut size, ptr::null(), 0) } != 0 {
+            return Err(io::Error::new(io::ErrorKind::Other, "sysctl() failed"))
+        }
+        Ok(data.iter().map(|c| c.to_cpuload()).collect::<Vec<_>>())
     }
 
     fn load_average(&self) -> io::Result<LoadAverage> {
@@ -86,6 +117,28 @@ fn parse_addr(aptr: *const sockaddr) -> IpAddr {
             IpAddr::V6(Ipv6Addr::new(a[7], a[6], a[5], a[4], a[3], a[2], a[1], a[0]))
         },
         _ => IpAddr::Unsupported,
+    }
+}
+
+#[repr(C)]
+struct sysctl_cpu {
+    user: usize,
+    nice: usize,
+    system: usize,
+    interrupt: usize,
+    idle: usize,
+}
+
+impl sysctl_cpu {
+    fn to_cpuload(&self) -> CPULoad {
+        let total = (self.user + self.nice + self.system + self.interrupt + self.idle) as f32;
+        CPULoad {
+            user_percent: self.user as f32 / total,
+            nice_percent: self.nice as f32 / total,
+            system_percent: self.system as f32 / total,
+            interrupt_percent: self.interrupt as f32 / total,
+            idle_percent: self.idle as f32 / total,
+        }
     }
 }
 
