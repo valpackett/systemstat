@@ -1,6 +1,15 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 #[derive(Debug, Clone)]
+pub struct CPULoad {
+    pub user_percent: f32,
+    pub nice_percent: f32,
+    pub system_percent: f32,
+    pub interrupt_percent: f32,
+    pub idle_percent: f32,
+}
+
+#[derive(Debug, Clone)]
 pub struct LoadAverage {
     pub one: f32,
     pub five: f32,
