@@ -1,3 +1,4 @@
+//! This module reexports the OS-specific module that actually implements Platform.
 pub mod common;
 pub use self::common::*;
 
@@ -15,7 +16,7 @@ mod tests {
         let load = PlatformImpl::new().cpu_load().unwrap();
         assert!(load.len() >= 1);
         for cpu in load.iter() {
-            let sum = cpu.user_percent + cpu.nice_percent + cpu.system_percent + cpu.interrupt_percent + cpu.idle_percent;
+            let sum = cpu.user + cpu.nice + cpu.system + cpu.interrupt + cpu.idle;
             assert!(sum > 0.95 && sum < 1.05);
         }
     }
@@ -24,7 +25,7 @@ mod tests {
     fn test_cpu_load_aggregate() {
         let cpu = PlatformImpl::new().cpu_load_aggregate().unwrap();
         println!("{:?}", cpu);
-        let sum = cpu.user_percent + cpu.nice_percent + cpu.system_percent + cpu.interrupt_percent + cpu.idle_percent;
+        let sum = cpu.user + cpu.nice + cpu.system + cpu.interrupt + cpu.idle;
         assert!(sum > 0.95 && sum < 1.05);
     }
 
