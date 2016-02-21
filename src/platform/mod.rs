@@ -10,10 +10,14 @@ pub use self::freebsd::PlatformImpl;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
+    use std::time::Duration;
 
     #[test]
     fn test_cpu_load() {
         let load = PlatformImpl::new().cpu_load().unwrap();
+        thread::sleep(Duration::from_millis(300));
+        let load = load.done().unwrap();
         assert!(load.len() >= 1);
         for cpu in load.iter() {
             let sum = cpu.user + cpu.nice + cpu.system + cpu.interrupt + cpu.idle;
@@ -24,7 +28,8 @@ mod tests {
     #[test]
     fn test_cpu_load_aggregate() {
         let cpu = PlatformImpl::new().cpu_load_aggregate().unwrap();
-        println!("{:?}", cpu);
+        thread::sleep(Duration::from_millis(300));
+        let cpu = cpu.done().unwrap();
         let sum = cpu.user + cpu.nice + cpu.system + cpu.interrupt + cpu.idle;
         assert!(sum > 0.95 && sum < 1.05);
     }

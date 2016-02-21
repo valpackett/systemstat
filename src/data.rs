@@ -2,8 +2,25 @@
 //!
 //! They're always the same across all platforms.
 
-use std::ops::Add;
+use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr};
+
+/// A wrapper for a measurement that takes time.
+///
+/// Time should pass between getting the object and calling .done() on it.
+pub struct DelayedMeasurement<T> {
+    res: Box<Fn() -> io::Result<T>>
+}
+
+impl<T> DelayedMeasurement<T> {
+    pub fn new(f: Box<Fn() -> io::Result<T>>) -> DelayedMeasurement<T> {
+        DelayedMeasurement { res: f }
+    }
+
+    pub fn done(&self) -> io::Result<T> {
+        (self.res)()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct CPULoad {
@@ -14,10 +31,8 @@ pub struct CPULoad {
     pub idle: f32,
 }
 
-impl<'a> Add<&'a CPULoad> for CPULoad {
-    type Output = CPULoad;
-
-    fn add(self, rhs: &CPULoad) -> CPULoad {
+impl CPULoad {
+    pub fn avg_add(self, rhs: &Self) -> Self {
         CPULoad {
             user: (self.user + rhs.user) / 2.0,
             nice: (self.nice + rhs.nice) / 2.0,

@@ -1,6 +1,7 @@
 // You are likely to be eaten by a grue.
 
 use std::{io, path, ptr, mem, ffi, slice};
+use std::ops::{Add, Sub, Div};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::collections::BTreeMap;
 use libc::{c_void, c_int, c_schar, c_uchar, size_t, uid_t, sysctl, sysctlnametomib,
@@ -34,16 +35,13 @@ impl Platform for PlatformImpl {
         PlatformImpl
     }
 
-    fn cpu_load(&self) -> io::Result<Vec<CPULoad>> {
-        let mut size = *CP_TIMES_SIZE;
-        let cpus = size / mem::size_of::<sysctl_cpu>();
-        let mut data: Vec<sysctl_cpu> = Vec::with_capacity(cpus);
-        unsafe { data.set_len(cpus) };
-        if unsafe { sysctl(&KERN_CP_TIMES[0], KERN_CP_TIMES.len() as u32,
-                           &mut data[0] as *mut _ as *mut c_void, &mut size, ptr::null(), 0) } != 0 {
-            return Err(io::Error::new(io::ErrorKind::Other, "sysctl() failed"))
-        }
-        Ok(data.iter().map(|c| c.to_cpuload()).collect::<Vec<_>>())
+    fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>> {
+        let loads = try!(sysctl_cpu::measure());
+        Ok(DelayedMeasurement::new(
+                Box::new(move || Ok(loads.iter()
+                               .zip(try!(sysctl_cpu::measure()).iter())
+                               .map(|(prev, now)| (*now - prev).to_cpuload())
+                               .collect::<Vec<_>>()))))
     }
 
     fn load_average(&self) -> io::Result<LoadAverage> {
@@ -102,6 +100,7 @@ impl Platform for PlatformImpl {
     }
 }
 
+
 fn parse_addr(aptr: *const sockaddr) -> IpAddr {
     if aptr == ptr::null() {
         return IpAddr::Empty;
@@ -123,6 +122,7 @@ fn parse_addr(aptr: *const sockaddr) -> IpAddr {
 }
 
 #[repr(C)]
+#[derive(Debug, Clone, Copy)]
 struct sysctl_cpu {
     user: usize,
     nice: usize,
@@ -131,7 +131,61 @@ struct sysctl_cpu {
     idle: usize,
 }
 
+impl<'a> Add<&'a sysctl_cpu> for sysctl_cpu {
+    type Output = sysctl_cpu;
+
+    fn add(self, rhs: &sysctl_cpu) -> sysctl_cpu {
+        sysctl_cpu {
+            user: self.user + rhs.user,
+            nice: self.nice + rhs.nice,
+            system: self.system + rhs.system,
+            interrupt: self.interrupt + rhs.interrupt,
+            idle: self.idle + rhs.idle,
+        }
+    }
+}
+
+impl<'a> Sub<&'a sysctl_cpu> for sysctl_cpu {
+    type Output = sysctl_cpu;
+
+    fn sub(self, rhs: &sysctl_cpu) -> sysctl_cpu {
+        sysctl_cpu {
+            user: self.user - rhs.user,
+            nice: self.nice - rhs.nice,
+            system: self.system - rhs.system,
+            interrupt: self.interrupt - rhs.interrupt,
+            idle: self.idle - rhs.idle,
+        }
+    }
+}
+
+impl Div<usize> for sysctl_cpu {
+    type Output = sysctl_cpu;
+
+    fn div(self, rhs: usize) -> sysctl_cpu {
+        sysctl_cpu {
+            user: self.user / rhs,
+            nice: self.nice / rhs,
+            system: self.system / rhs,
+            interrupt: self.interrupt / rhs,
+            idle: self.idle / rhs,
+        }
+    }
+}
+
 impl sysctl_cpu {
+    fn measure() -> io::Result<Vec<sysctl_cpu>> {
+        let mut size = *CP_TIMES_SIZE;
+        let cpus = size / mem::size_of::<sysctl_cpu>();
+        let mut data: Vec<sysctl_cpu> = Vec::with_capacity(cpus);
+        unsafe { data.set_len(cpus) };
+        if unsafe { sysctl(&KERN_CP_TIMES[0], KERN_CP_TIMES.len() as u32,
+                           &mut data[0] as *mut _ as *mut c_void, &mut size, ptr::null(), 0) } != 0 {
+            return Err(io::Error::new(io::ErrorKind::Other, "sysctl() failed"))
+        }
+        Ok(data) // .iter().map(|c| c.to_cpuload()).collect::<Vec<_>>())
+    }
+
     fn to_cpuload(&self) -> CPULoad {
         let total = (self.user + self.nice + self.system + self.interrupt + self.idle) as f32;
         CPULoad {
