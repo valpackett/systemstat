@@ -6,10 +6,16 @@ use data::*;
 pub trait Platform {
     fn new() -> Self;
 
-    /// Returns a vector of CPU load statistics, one object per CPU (core).
+    /// Returns a delayed vector of CPU load statistics, one object per CPU (core).
+    ///
+    /// You need to wait some time (about a second is good) before unwrapping the
+    /// `DelayedMeasurement` with `.done()`.
     fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>>;
 
-    /// Returns a CPU load statistics object, average over all CPUs (cores).
+    /// Returns a delayed CPU load statistics object, average over all CPUs (cores).
+    ///
+    /// You need to wait some time (about a second is good) before unwrapping the
+    /// `DelayedMeasurement` with `.done()`.
     fn cpu_load_aggregate(&self) -> io::Result<DelayedMeasurement<CPULoad>> {
         let measurement = try!(self.cpu_load());
         Ok(DelayedMeasurement::new(
