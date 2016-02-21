@@ -7,15 +7,17 @@ pub trait Platform {
     fn new() -> Self;
 
     /// Returns a vector of CPU load statistics, one object per CPU (core).
-    fn cpu_load(&self) -> io::Result<Vec<CPULoad>>;
+    fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>>;
 
     /// Returns a CPU load statistics object, average over all CPUs (cores).
-    fn cpu_load_aggregate(&self) -> io::Result<CPULoad> {
-        self.cpu_load().map(|ls| {
-            let mut it = ls.iter();
-            let first = it.next().unwrap().clone(); // has to be a variable, rust moves the iterator otherwise
-            it.fold(first, |acc, l| acc + l)
-        })
+    fn cpu_load_aggregate(&self) -> io::Result<DelayedMeasurement<CPULoad>> {
+        let measurement = try!(self.cpu_load());
+        Ok(DelayedMeasurement::new(
+                Box::new(move || measurement.done().map(|ls| {
+                    let mut it = ls.iter();
+                    let first = it.next().unwrap().clone(); // has to be a variable, rust moves the iterator otherwise
+                    it.fold(first, |acc, l| acc.avg_add(l))
+                }))))
     }
 
     /// Returns a load average object.
