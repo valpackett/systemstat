@@ -1,13 +1,17 @@
+//! This module provides the data structures that represent system information.
+//!
+//! They're always the same across all platforms.
+
 use std::ops::Add;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 #[derive(Debug, Clone)]
 pub struct CPULoad {
-    pub user_percent: f32,
-    pub nice_percent: f32,
-    pub system_percent: f32,
-    pub interrupt_percent: f32,
-    pub idle_percent: f32,
+    pub user: f32,
+    pub nice: f32,
+    pub system: f32,
+    pub interrupt: f32,
+    pub idle: f32,
 }
 
 impl<'a> Add<&'a CPULoad> for CPULoad {
@@ -15,11 +19,11 @@ impl<'a> Add<&'a CPULoad> for CPULoad {
 
     fn add(self, rhs: &CPULoad) -> CPULoad {
         CPULoad {
-            user_percent: (self.user_percent + rhs.user_percent) / 2.0,
-            nice_percent: (self.nice_percent + rhs.nice_percent) / 2.0,
-            system_percent: (self.system_percent + rhs.system_percent) / 2.0,
-            interrupt_percent: (self.interrupt_percent + rhs.interrupt_percent) / 2.0,
-            idle_percent: (self.idle_percent + rhs.idle_percent) / 2.0,
+            user: (self.user + rhs.user) / 2.0,
+            nice: (self.nice + rhs.nice) / 2.0,
+            system: (self.system + rhs.system) / 2.0,
+            interrupt: (self.interrupt + rhs.interrupt) / 2.0,
+            idle: (self.idle + rhs.idle) / 2.0,
         }
     }
 }

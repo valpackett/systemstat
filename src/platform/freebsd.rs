@@ -27,6 +27,8 @@ lazy_static! {
     };
 }
 
+/// An implementation of `Platform` for FreeBSD.
+/// See `Platform` for documentation.
 impl Platform for PlatformImpl {
     fn new() -> Self {
         PlatformImpl
@@ -133,11 +135,11 @@ impl sysctl_cpu {
     fn to_cpuload(&self) -> CPULoad {
         let total = (self.user + self.nice + self.system + self.interrupt + self.idle) as f32;
         CPULoad {
-            user_percent: self.user as f32 / total,
-            nice_percent: self.nice as f32 / total,
-            system_percent: self.system as f32 / total,
-            interrupt_percent: self.interrupt as f32 / total,
-            idle_percent: self.idle as f32 / total,
+            user: self.user as f32 / total,
+            nice: self.nice as f32 / total,
+            system: self.system as f32 / total,
+            interrupt: self.interrupt as f32 / total,
+            idle: self.idle as f32 / total,
         }
     }
 }
