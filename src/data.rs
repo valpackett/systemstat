@@ -1,3 +1,4 @@
+use std::ops::Add;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 #[derive(Debug, Clone)]
@@ -7,6 +8,20 @@ pub struct CPULoad {
     pub system_percent: f32,
     pub interrupt_percent: f32,
     pub idle_percent: f32,
+}
+
+impl<'a> Add<&'a CPULoad> for CPULoad {
+    type Output = CPULoad;
+
+    fn add(self, rhs: &CPULoad) -> CPULoad {
+        CPULoad {
+            user_percent: (self.user_percent + rhs.user_percent) / 2.0,
+            nice_percent: (self.nice_percent + rhs.nice_percent) / 2.0,
+            system_percent: (self.system_percent + rhs.system_percent) / 2.0,
+            interrupt_percent: (self.interrupt_percent + rhs.interrupt_percent) / 2.0,
+            idle_percent: (self.idle_percent + rhs.idle_percent) / 2.0,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

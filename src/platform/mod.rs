@@ -21,6 +21,14 @@ mod tests {
     }
 
     #[test]
+    fn test_cpu_load_aggregate() {
+        let cpu = PlatformImpl::new().cpu_load_aggregate().unwrap();
+        println!("{:?}", cpu);
+        let sum = cpu.user_percent + cpu.nice_percent + cpu.system_percent + cpu.interrupt_percent + cpu.idle_percent;
+        assert!(sum > 0.95 && sum < 1.05);
+    }
+
+    #[test]
     fn test_load_average() {
         let load = PlatformImpl::new().load_average().unwrap();
         assert!(load.one > 0.00001 && load.five > 0.00001 && load.fifteen > 0.00001);
