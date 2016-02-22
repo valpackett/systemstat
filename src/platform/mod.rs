@@ -41,6 +41,12 @@ mod tests {
     }
 
     #[test]
+    fn test_memory() {
+        let mem = PlatformImpl::new().memory().unwrap();
+        assert!(mem.free_kb > 100 && mem.active_kb > 100);
+    }
+
+    #[test]
     fn test_mounts() {
         let mounts = PlatformImpl::new().mounts().unwrap();
         assert!(mounts.len() > 0);

@@ -1,7 +1,7 @@
 // You are likely to be eaten by a grue.
 
 use std::{io, path, ptr, mem, ffi, slice};
-use std::ops::{Add, Sub, Div};
+use std::ops::Sub;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::collections::BTreeMap;
 use libc::{c_void, c_int, c_schar, c_uchar, size_t, uid_t, sysctl, sysctlnametomib,
@@ -11,14 +11,49 @@ use super::common::*;
 
 pub struct PlatformImpl;
 
+macro_rules! sysctl_mib {
+    ($len:expr, $name:expr) => {
+        {
+            let mut mib: [c_int; $len] = [0; $len];
+            let mut sz: size_t = mib.len();
+            let s = ffi::CString::new($name).unwrap();
+            unsafe { sysctlnametomib(s.as_ptr(), &mut mib[0], &mut sz) };
+            mib
+        }
+    }
+}
+
+macro_rules! sysctl {
+    ($mib:expr, $dataptr:expr, $size:expr) => {
+        {
+            let mib = &$mib;
+            let mut size = $size;
+            if unsafe { sysctl(&mib[0], mib.len() as u32,
+                               $dataptr as *mut _ as *mut c_void, &mut size, ptr::null(), 0) } != 0 {
+                return Err(io::Error::new(io::ErrorKind::Other, "sysctl() failed"))
+            }
+            size
+        }
+    }
+}
+
 lazy_static! {
-    static ref KERN_CP_TIMES: [c_int; 2] = {
-        let mut mib = [0, 0];
-        let mut sz: size_t = mib.len();
-        let s = ffi::CString::new("kern.cp_times").unwrap();
-        unsafe { sysctlnametomib(s.as_ptr(), &mut mib[0], &mut sz) };
-        mib
+    static ref PAGESHIFT: c_int = {
+        let mut pagesize = unsafe { getpagesize() };
+        let mut pageshift = 0;
+        while pagesize > 1 {
+            pageshift += 1;
+            pagesize >>= 1;
+        }
+        pageshift - 10 // LOG1024
     };
+
+    static ref KERN_CP_TIMES: [c_int; 2] = sysctl_mib!(2, "kern.cp_times");
+    static ref V_ACTIVE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_active_count");
+    static ref V_INACTIVE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_inactive_count");
+    static ref V_WIRE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_wire_count");
+    static ref V_CACHE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_cache_count");
+    static ref V_FREE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_free_count");
 
     static ref CP_TIMES_SIZE: usize = {
         let mut size: usize = 0;
@@ -51,6 +86,21 @@ impl Platform for PlatformImpl {
         }
         Ok(LoadAverage {
             one: loads[0] as f32, five: loads[1] as f32, fifteen: loads[2] as f32
+        })
+    }
+
+    fn memory(&self) -> io::Result<Memory> {
+        let mut active: usize = 0; sysctl!(V_ACTIVE_COUNT, &mut active, mem::size_of::<usize>());
+        let mut inactive: usize = 0; sysctl!(V_INACTIVE_COUNT, &mut inactive, mem::size_of::<usize>());
+        let mut wired: usize = 0; sysctl!(V_WIRE_COUNT, &mut wired, mem::size_of::<usize>());
+        let mut cache: usize = 0; sysctl!(V_CACHE_COUNT, &mut cache, mem::size_of::<usize>());
+        let mut free: usize = 0; sysctl!(V_FREE_COUNT, &mut free, mem::size_of::<usize>());
+        Ok(Memory {
+            active_kb: active << *PAGESHIFT,
+            inactive_kb: inactive << *PAGESHIFT,
+            wired_kb: wired << *PAGESHIFT,
+            cache_kb: cache << *PAGESHIFT,
+            free_kb: free << *PAGESHIFT,
         })
     }
 
@@ -131,20 +181,6 @@ struct sysctl_cpu {
     idle: usize,
 }
 
-impl<'a> Add<&'a sysctl_cpu> for sysctl_cpu {
-    type Output = sysctl_cpu;
-
-    fn add(self, rhs: &sysctl_cpu) -> sysctl_cpu {
-        sysctl_cpu {
-            user: self.user + rhs.user,
-            nice: self.nice + rhs.nice,
-            system: self.system + rhs.system,
-            interrupt: self.interrupt + rhs.interrupt,
-            idle: self.idle + rhs.idle,
-        }
-    }
-}
-
 impl<'a> Sub<&'a sysctl_cpu> for sysctl_cpu {
     type Output = sysctl_cpu;
 
@@ -159,31 +195,13 @@ impl<'a> Sub<&'a sysctl_cpu> for sysctl_cpu {
     }
 }
 
-impl Div<usize> for sysctl_cpu {
-    type Output = sysctl_cpu;
-
-    fn div(self, rhs: usize) -> sysctl_cpu {
-        sysctl_cpu {
-            user: self.user / rhs,
-            nice: self.nice / rhs,
-            system: self.system / rhs,
-            interrupt: self.interrupt / rhs,
-            idle: self.idle / rhs,
-        }
-    }
-}
-
 impl sysctl_cpu {
     fn measure() -> io::Result<Vec<sysctl_cpu>> {
-        let mut size = *CP_TIMES_SIZE;
-        let cpus = size / mem::size_of::<sysctl_cpu>();
+        let cpus = *CP_TIMES_SIZE / mem::size_of::<sysctl_cpu>();
         let mut data: Vec<sysctl_cpu> = Vec::with_capacity(cpus);
         unsafe { data.set_len(cpus) };
-        if unsafe { sysctl(&KERN_CP_TIMES[0], KERN_CP_TIMES.len() as u32,
-                           &mut data[0] as *mut _ as *mut c_void, &mut size, ptr::null(), 0) } != 0 {
-            return Err(io::Error::new(io::ErrorKind::Other, "sysctl() failed"))
-        }
-        Ok(data) // .iter().map(|c| c.to_cpuload()).collect::<Vec<_>>())
+        sysctl!(KERN_CP_TIMES, &mut data[0], *CP_TIMES_SIZE);
+        Ok(data)
     }
 
     fn to_cpuload(&self) -> CPULoad {
@@ -251,4 +269,5 @@ extern {
     fn getloadavg(loadavg: *mut f64, nelem: c_int) -> c_int;
     fn getmntinfo(mntbufp: *mut *mut statfs, flags: c_int) -> c_int;
     fn statfs(path: *const c_uchar, buf: *mut statfs) -> c_int;
+    fn getpagesize() -> c_int;
 }

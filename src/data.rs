@@ -51,6 +51,15 @@ pub struct LoadAverage {
 }
 
 #[derive(Debug, Clone)]
+pub struct Memory {
+    pub active_kb: usize,
+    pub inactive_kb: usize,
+    pub wired_kb: usize,
+    pub cache_kb: usize,
+    pub free_kb: usize,
+}
+
+#[derive(Debug, Clone)]
 pub struct Filesystem {
     pub files: u64,
     pub free_bytes: u64,

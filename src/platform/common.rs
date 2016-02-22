@@ -29,6 +29,9 @@ pub trait Platform {
     /// Returns a load average object.
     fn load_average(&self) -> io::Result<LoadAverage>;
 
+    /// Returns a memory information object.
+    fn memory(&self) -> io::Result<Memory>;
+
     /// Returns a vector of filesystem mount information objects.
     fn mounts(&self) -> io::Result<Vec<Filesystem>>;
 
