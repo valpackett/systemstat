@@ -43,7 +43,7 @@ mod tests {
     #[test]
     fn test_memory() {
         let mem = PlatformImpl::new().memory().unwrap();
-        assert!(mem.free_kb > 100 && mem.active_kb > 100);
+        assert!(mem.free.as_usize() > 1024 && mem.active.as_usize() > 1024);
     }
 
     #[test]

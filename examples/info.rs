@@ -10,8 +10,8 @@ fn main() {
     let mounts = sys.mounts().unwrap();
     println!("\nMounts:");
     for mount in mounts.iter() {
-        println!("{} ---{}---> {} (available {} of {} bytes)",
-                 mount.fs_mounted_from, mount.fs_type, mount.fs_mounted_on, mount.avail_bytes, mount.total_bytes);
+        println!("{} ---{}---> {} (available {} of {})",
+                 mount.fs_mounted_from, mount.fs_type, mount.fs_mounted_on, mount.avail, mount.total);
     }
 
     let netifs = sys.networks().unwrap();
@@ -21,8 +21,8 @@ fn main() {
     }
 
     let mem = sys.memory().unwrap();
-    println!("\nMemory: {} KiB active, {} KiB inact, {} KiB wired, {} KiB cache, {} KiB free",
-             mem.active_kb, mem.inactive_kb, mem.wired_kb, mem.cache_kb, mem.free_kb);
+    println!("\nMemory: {} active, {} inact, {} wired, {} cache, {} free",
+             mem.active, mem.inactive, mem.wired, mem.cache, mem.free);
 
     let loadavg = sys.load_average().unwrap();
     println!("\nLoad average: {} {} {}", loadavg.one, loadavg.five, loadavg.fifteen);
