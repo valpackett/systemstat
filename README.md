@@ -1,8 +1,25 @@
 # systemstat [![unlicense](https://img.shields.io/badge/un-license-green.svg?style=flat)](http://unlicense.org)
 
+A Rust library for getting system information/statistics on UNIX-like systems:
+
+- memory usage
+- CPU load
+- load average
+- filesystem mounts (and disk usage)
+- network interfaces
+
+Unlike [sys-info-rs](https://github.com/FillZpp/sys-info-rs), this one is written purely in Rust.
+
+Supported platforms:
+
+- FreeBSD
+- *more coming soon*
+
+Originally written for [unixbar](https://github.com/myfreeweb/unixbar) :-)
+
 ## Usage
 
-TODO
+See [examples/info.rs](https://github.com/myfreeweb/systemstat/blob/master/examples/info.rs).
 
 ## Contributing
 
