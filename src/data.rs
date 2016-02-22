@@ -4,6 +4,7 @@
 
 use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr};
+pub use bytesize::ByteSize;
 
 /// A wrapper for a measurement that takes time.
 ///
@@ -52,20 +53,20 @@ pub struct LoadAverage {
 
 #[derive(Debug, Clone)]
 pub struct Memory {
-    pub active_kb: usize,
-    pub inactive_kb: usize,
-    pub wired_kb: usize,
-    pub cache_kb: usize,
-    pub free_kb: usize,
+    pub active: ByteSize,
+    pub inactive: ByteSize,
+    pub wired: ByteSize,
+    pub cache: ByteSize,
+    pub free: ByteSize,
 }
 
 #[derive(Debug, Clone)]
 pub struct Filesystem {
-    pub files: u64,
-    pub free_bytes: u64,
-    pub avail_bytes: u64,
-    pub total_bytes: u64,
-    pub name_max: u64,
+    pub files: usize,
+    pub free: ByteSize,
+    pub avail: ByteSize,
+    pub total: ByteSize,
+    pub name_max: usize,
     pub fs_type: String,
     pub fs_mounted_from: String,
     pub fs_mounted_on: String,

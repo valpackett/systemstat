@@ -96,11 +96,11 @@ impl Platform for PlatformImpl {
         let mut cache: usize = 0; sysctl!(V_CACHE_COUNT, &mut cache, mem::size_of::<usize>());
         let mut free: usize = 0; sysctl!(V_FREE_COUNT, &mut free, mem::size_of::<usize>());
         Ok(Memory {
-            active_kb: active << *PAGESHIFT,
-            inactive_kb: inactive << *PAGESHIFT,
-            wired_kb: wired << *PAGESHIFT,
-            cache_kb: cache << *PAGESHIFT,
-            free_kb: free << *PAGESHIFT,
+            active: ByteSize::kib(active << *PAGESHIFT),
+            inactive: ByteSize::kib(inactive << *PAGESHIFT),
+            wired: ByteSize::kib(wired << *PAGESHIFT),
+            cache: ByteSize::kib(cache << *PAGESHIFT),
+            free: ByteSize::kib(free << *PAGESHIFT),
         })
     }
 
@@ -252,11 +252,11 @@ struct statfs {
 impl statfs {
     fn to_fs(&self) -> Filesystem {
         Filesystem {
-            files: self.f_files - self.f_ffree as u64,
-            free_bytes: self.f_bfree as u64 * self.f_bsize,
-            avail_bytes: self.f_bavail as u64 * self.f_bsize,
-            total_bytes: self.f_blocks as u64 * self.f_bsize,
-            name_max: self.f_namemax as u64,
+            files: self.f_files as usize - self.f_ffree as usize,
+            free: ByteSize::b(self.f_bfree as usize * self.f_bsize as usize),
+            avail: ByteSize::b(self.f_bavail as usize * self.f_bsize as usize),
+            total: ByteSize::b(self.f_blocks as usize * self.f_bsize as usize),
+            name_max: self.f_namemax as usize,
             fs_type: unsafe { ffi::CStr::from_ptr(&self.f_fstypename[0]).to_string_lossy().into_owned() },
             fs_mounted_from: unsafe { ffi::CStr::from_ptr(&self.f_mntfromname[0]).to_string_lossy().into_owned() },
             fs_mounted_on: unsafe { ffi::CStr::from_ptr(&self.f_mntonname[0]).to_string_lossy().into_owned() },

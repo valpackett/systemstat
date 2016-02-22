@@ -2,6 +2,7 @@
 //! network interfaces, etc.
 
 extern crate libc;
+extern crate bytesize;
 #[macro_use] extern crate lazy_static;
 
 pub mod platform;
