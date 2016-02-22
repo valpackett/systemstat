@@ -66,6 +66,7 @@ lazy_static! {
 /// An implementation of `Platform` for FreeBSD.
 /// See `Platform` for documentation.
 impl Platform for PlatformImpl {
+    #[inline(always)]
     fn new() -> Self {
         PlatformImpl
     }
@@ -184,6 +185,7 @@ struct sysctl_cpu {
 impl<'a> Sub<&'a sysctl_cpu> for sysctl_cpu {
     type Output = sysctl_cpu;
 
+    #[inline(always)]
     fn sub(self, rhs: &sysctl_cpu) -> sysctl_cpu {
         sysctl_cpu {
             user: self.user - rhs.user,
