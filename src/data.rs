@@ -14,10 +14,12 @@ pub struct DelayedMeasurement<T> {
 }
 
 impl<T> DelayedMeasurement<T> {
+    #[inline(always)]
     pub fn new(f: Box<Fn() -> io::Result<T>>) -> DelayedMeasurement<T> {
         DelayedMeasurement { res: f }
     }
 
+    #[inline(always)]
     pub fn done(&self) -> io::Result<T> {
         (self.res)()
     }
@@ -33,6 +35,7 @@ pub struct CPULoad {
 }
 
 impl CPULoad {
+    #[inline(always)]
     pub fn avg_add(self, rhs: &Self) -> Self {
         CPULoad {
             user: (self.user + rhs.user) / 2.0,
