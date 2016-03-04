@@ -7,6 +7,11 @@ pub mod freebsd;
 #[cfg(target_os = "freebsd")]
 pub use self::freebsd::PlatformImpl;
 
+#[cfg(target_os = "linux")]
+pub mod linux;
+#[cfg(target_os = "linux")]
+pub use self::linux::PlatformImpl;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -43,7 +48,7 @@ mod tests {
     #[test]
     fn test_memory() {
         let mem = PlatformImpl::new().memory().unwrap();
-        assert!(mem.free.as_usize() > 1024 && mem.active.as_usize() > 1024);
+        assert!(mem.free.as_usize() > 1024 && mem.total.as_usize() > 1024);
     }
 
     #[test]

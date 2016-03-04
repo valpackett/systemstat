@@ -99,12 +99,17 @@ impl Platform for PlatformImpl {
         let mut wired: usize = 0; sysctl!(V_WIRE_COUNT, &mut wired, mem::size_of::<usize>());
         let mut cache: usize = 0; sysctl!(V_CACHE_COUNT, &mut cache, mem::size_of::<usize>());
         let mut free: usize = 0; sysctl!(V_FREE_COUNT, &mut free, mem::size_of::<usize>());
-        Ok(Memory {
+        let pmem = PlatformMemory {
             active: ByteSize::kib(active << *PAGESHIFT),
             inactive: ByteSize::kib(inactive << *PAGESHIFT),
             wired: ByteSize::kib(wired << *PAGESHIFT),
             cache: ByteSize::kib(cache << *PAGESHIFT),
             free: ByteSize::kib(free << *PAGESHIFT),
+        };
+        Ok(Memory {
+            total: pmem.active + pmem.inactive + pmem.wired + pmem.cache + pmem.free,
+            free: pmem.inactive + pmem.cache + pmem.free,
+            platform_memory: pmem,
         })
     }
 
