@@ -1,6 +1,6 @@
 // You are likely to be eaten by a grue.
 
-use std::{io, path, ptr, mem, ffi, slice};
+use std::{io, path, ptr, mem, ffi, slice, time};
 use std::ops::Sub;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::collections::BTreeMap;
@@ -54,6 +54,9 @@ lazy_static! {
     static ref V_WIRE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_wire_count");
     static ref V_CACHE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_cache_count");
     static ref V_FREE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_free_count");
+    static ref BATTERY_LIFE: [c_int; 4] = sysctl_mib!(4, "hw.acpi.battery.life");
+    static ref BATTERY_TIME: [c_int; 4] = sysctl_mib!(4, "hw.acpi.battery.time");
+    static ref ACLINE: [c_int; 3] = sysctl_mib!(3, "hw.acpi.acline");
 
     static ref CP_TIMES_SIZE: usize = {
         let mut size: usize = 0;
@@ -103,6 +106,20 @@ impl Platform for PlatformImpl {
             cache: ByteSize::kib(cache << *PAGESHIFT),
             free: ByteSize::kib(free << *PAGESHIFT),
         })
+    }
+
+    fn battery_life(&self) -> io::Result<BatteryLife> {
+        let mut life: usize = 0; sysctl!(BATTERY_LIFE, &mut life, mem::size_of::<usize>());
+        let mut time: i32 = 0; sysctl!(BATTERY_TIME, &mut time, mem::size_of::<i32>());
+        Ok(BatteryLife {
+            remaining_capacity: life as f32 / 100.0,
+            remaining_time: time::Duration::from_secs(if time < 0 { 0 } else { time as u64 }),
+        })
+    }
+
+    fn on_ac_power(&self) -> io::Result<bool> {
+        let mut on: usize = 0; sysctl!(ACLINE, &mut on, mem::size_of::<usize>());
+        Ok(on == 1)
     }
 
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {

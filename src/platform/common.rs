@@ -32,6 +32,12 @@ pub trait Platform {
     /// Returns a memory information object.
     fn memory(&self) -> io::Result<Memory>;
 
+    /// Returns a battery life information object.
+    fn battery_life(&self) -> io::Result<BatteryLife>;
+
+    /// Returns whether AC power is plugged in.
+    fn on_ac_power(&self) -> io::Result<bool>;
+
     /// Returns a vector of filesystem mount information objects.
     fn mounts(&self) -> io::Result<Vec<Filesystem>>;
 
