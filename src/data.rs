@@ -55,13 +55,30 @@ pub struct LoadAverage {
     pub fifteen: f32,
 }
 
+#[cfg(any(target_os = "freebsd"))]
 #[derive(Debug, Clone)]
-pub struct Memory {
+pub struct PlatformMemory {
     pub active: ByteSize,
     pub inactive: ByteSize,
     pub wired: ByteSize,
     pub cache: ByteSize,
     pub free: ByteSize,
+}
+
+#[cfg(any(target_os = "linux"))]
+#[derive(Debug, Clone)]
+pub struct PlatformMemory {
+    pub total: ByteSize,
+    pub free: ByteSize,
+    pub shared: ByteSize,
+    pub buffer: ByteSize,
+}
+
+#[derive(Debug, Clone)]
+pub struct Memory {
+    pub total: ByteSize,
+    pub free: ByteSize,
+    pub platform_memory: PlatformMemory,
 }
 
 #[derive(Debug, Clone)]

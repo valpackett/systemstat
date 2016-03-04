@@ -31,8 +31,7 @@ fn main() {
     println!(", AC power: {}", sys.on_ac_power().unwrap());
 
     let mem = sys.memory().unwrap();
-    println!("\nMemory: {} active, {} inact, {} wired, {} cache, {} free",
-             mem.active, mem.inactive, mem.wired, mem.cache, mem.free);
+    println!("\nMemory: {}/{} ({:?})", mem.free, mem.total, mem.platform_memory);
 
     let loadavg = sys.load_average().unwrap();
     println!("\nLoad average: {} {} {}", loadavg.one, loadavg.five, loadavg.fifteen);
