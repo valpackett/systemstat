@@ -3,6 +3,7 @@
 //! They're always the same across all platforms.
 
 use std::io;
+use std::time::Duration;
 use std::net::{Ipv4Addr, Ipv6Addr};
 pub use bytesize::ByteSize;
 
@@ -61,6 +62,12 @@ pub struct Memory {
     pub wired: ByteSize,
     pub cache: ByteSize,
     pub free: ByteSize,
+}
+
+#[derive(Debug, Clone)]
+pub struct BatteryLife {
+    pub remaining_capacity: f32,
+    pub remaining_time: Duration,
 }
 
 #[derive(Debug, Clone)]

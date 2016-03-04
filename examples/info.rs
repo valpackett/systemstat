@@ -20,6 +20,16 @@ fn main() {
         println!("{} ({:?})", netif.name, netif.addrs);
     }
 
+    if let Ok(battery) = sys.battery_life() {
+        print!("\nBattery: {}%, {}h{}m remaining",
+               battery.remaining_capacity*100.0,
+               battery.remaining_time.as_secs() / 60,
+               battery.remaining_time.as_secs() % 60);
+    } else {
+        print!("\nNo battery detected");
+    }
+    println!(", AC power: {}", sys.on_ac_power().unwrap());
+
     let mem = sys.memory().unwrap();
     println!("\nMemory: {} active, {} inact, {} wired, {} cache, {} free",
              mem.active, mem.inactive, mem.wired, mem.cache, mem.free);

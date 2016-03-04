@@ -47,6 +47,18 @@ mod tests {
     }
 
     #[test]
+    fn test_battery_life() {
+        if let Ok(bat) = PlatformImpl::new().battery_life() {
+            assert!(bat.remaining_capacity <= 100.0 && bat.remaining_capacity >= 0.0);
+        }
+    }
+
+    #[test]
+    fn test_on_ac_power() {
+        PlatformImpl::new().on_ac_power().unwrap();
+    }
+
+    #[test]
     fn test_mounts() {
         let mounts = PlatformImpl::new().mounts().unwrap();
         assert!(mounts.len() > 0);
