@@ -1,4 +1,5 @@
-use std::{io, path, ptr, mem, ffi, slice, time};
+use std::{io, path, ptr, mem, ffi, slice, time, fs};
+use std::io::Read;
 use std::ops::Sub;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::collections::BTreeMap;
@@ -52,7 +53,11 @@ impl Platform for PlatformImpl {
     }
 
     fn on_ac_power(&self) -> io::Result<bool> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        let mut s = String::new();
+		match fs::File::open("/sys/class/power_supply/AC/online").unwrap().read_to_string(&mut s)/*.expect("Failed to read file")*/ {
+		    Ok(_) => { Ok(s != "0\n".to_string()) }
+		    Err(e) => { Err(io::Error::new(io::ErrorKind::Other, format!("Error: {} in function: on_ac_power()", e))) }
+		}
     }
 
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
