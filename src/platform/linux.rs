@@ -1,11 +1,32 @@
 use std::{io, path, ptr, mem, ffi, slice, time, fs};
+use std::path::PathBuf;
 use std::io::Read;
 use std::ops::Sub;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::collections::BTreeMap;
+use std::time::Duration;
 use libc::{c_void, c_int, c_ulong, c_ushort, c_uint, c_long, c_schar, c_uchar, size_t, uid_t};
 use data::*;
 use super::common::*;
+
+// utility functions:
+fn value_from_file(path: String) -> i32 {
+    let mut val = String::new();
+    fs::File::open(path).unwrap().read_to_string(&mut val);
+    val.trim_right_matches("\n").parse().unwrap()
+}
+
+fn capacity(charge_full: i32, charge_now: i32) -> f32 {
+    charge_now as f32 / charge_full as f32
+}
+
+fn time(charge_full: i32, charge_now: i32, current_now: i32) -> Duration {
+    println!("full: {}, now: {}, current: {}",
+             charge_full,
+             charge_now,
+             current_now) ;
+    Duration::from_secs((charge_full - charge_now).abs() as u64 * 3600u64 / current_now as u64)
+}
 
 pub struct PlatformImpl;
 
@@ -24,10 +45,12 @@ impl Platform for PlatformImpl {
     fn load_average(&self) -> io::Result<LoadAverage> {
         let mut loads: [f64; 3] = [0.0, 0.0, 0.0];
         if unsafe { getloadavg(&mut loads[0], 3) } != 3 {
-            return Err(io::Error::new(io::ErrorKind::Other, "getloadavg() failed"))
+            return Err(io::Error::new(io::ErrorKind::Other, "getloadavg() failed"));
         }
         Ok(LoadAverage {
-            one: loads[0] as f32, five: loads[1] as f32, fifteen: loads[2] as f32
+            one: loads[0] as f32,
+            five: loads[1] as f32,
+            fifteen: loads[2] as f32,
         })
     }
 
@@ -48,14 +71,39 @@ impl Platform for PlatformImpl {
         })
     }
 
+
     fn battery_life(&self) -> io::Result<BatteryLife> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        let dir = "/sys/class/power_supply";
+        let entries = fs::read_dir(&dir).unwrap();
+        let mut full = 0;
+        let mut now = 0;
+        let mut current = 0;
+        for e in entries {
+            let p = e.unwrap().path();
+            let s = p.to_str().unwrap();
+            let f = p.file_name().unwrap().to_str().unwrap();
+            if f.len() > 3 {
+                if f.split_at(3).0 == "BAT" {
+                    full += value_from_file(s.to_string() + "/charge_full");
+                    now += value_from_file(s.to_string() + "/charge_now");
+                    current += value_from_file(s.to_string() + "/current_now");
+                }
+            }
+        }
+        if full != 0 {
+            Ok(BatteryLife {
+                remaining_capacity: capacity(full, now),
+                remaining_time: time(full, now, current),
+            })
+        } else {
+            Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        }
     }
 
     fn on_ac_power(&self) -> io::Result<bool> {
         let mut s = String::new();
-		match fs::File::open("/sys/class/power_supply/AC/online").unwrap().read_to_string(&mut s)/*.expect("Failed to read file")*/ {
-		    Ok(_) => { Ok(s != "0\n".to_string()) }
+        match fs::File::open("/sys/class/power_supply/AC/online").unwrap().read_to_string(&mut s)/*.expect("Failed to read file")*/ {
+		    Ok(_) => { Ok(s.split_at(1).0 != "0".to_string()) }
 		    Err(e) => { Err(io::Error::new(io::ErrorKind::Other, format!("Error: {} in function: on_ac_power()", e))) }
 		}
     }
@@ -92,7 +140,7 @@ struct sysinfo {
 }
 
 #[link(name = "c")]
-extern {
+extern "C" {
     fn getloadavg(loadavg: *mut f64, nelem: c_int) -> c_int;
     fn sysinfo(info: *mut sysinfo);
 }
