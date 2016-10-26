@@ -21,10 +21,6 @@ fn capacity(charge_full: i32, charge_now: i32) -> f32 {
 }
 
 fn time(charge_full: i32, charge_now: i32, current_now: i32) -> Duration {
-    println!("full: {}, now: {}, current: {}",
-             charge_full,
-             charge_now,
-             current_now) ;
     Duration::from_secs((charge_full - charge_now).abs() as u64 * 3600u64 / current_now as u64)
 }
 
