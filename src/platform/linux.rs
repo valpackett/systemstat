@@ -9,11 +9,22 @@ use libc::{c_void, c_int, c_ulong, c_ushort, c_uint, c_long, c_schar, c_uchar, s
 use data::*;
 use super::common::*;
 
-// utility functions:
-fn value_from_file(path: String) -> i32 {
-    let mut val = String::new();
-    fs::File::open(path).unwrap().read_to_string(&mut val);
-    val.trim_right_matches("\n").parse().unwrap()
+fn read_file(path: &str) -> io::Result<String> {
+    let mut s = String::new();
+    fs::File::open(path)
+        .and_then(|mut f| f.read_to_string(&mut s))
+        .map(|_| s)
+}
+
+fn value_from_file(path: &str) -> io::Result<i32> {
+    try!(read_file(path))
+        .trim_right_matches("\n")
+        .parse()
+        .and_then(|n| Ok(n))
+        .or_else(|_| {
+            Err(io::Error::new(io::ErrorKind::Other,
+                               format!("File: \"{}\" doesn't contain an int value", &path)))
+        })
 }
 
 fn capacity(charge_full: i32, charge_now: i32) -> f32 {
@@ -70,7 +81,7 @@ impl Platform for PlatformImpl {
 
     fn battery_life(&self) -> io::Result<BatteryLife> {
         let dir = "/sys/class/power_supply";
-        let entries = fs::read_dir(&dir).unwrap();
+        let entries = try!(fs::read_dir(&dir));
         let mut full = 0;
         let mut now = 0;
         let mut current = 0;
@@ -80,9 +91,9 @@ impl Platform for PlatformImpl {
             let f = p.file_name().unwrap().to_str().unwrap();
             if f.len() > 3 {
                 if f.split_at(3).0 == "BAT" {
-                    full += value_from_file(s.to_string() + "/charge_full");
-                    now += value_from_file(s.to_string() + "/charge_now");
-                    current += value_from_file(s.to_string() + "/current_now");
+                    full += try!(value_from_file(&(s.to_string() + "/charge_full")));
+                    now += try!(value_from_file(&(s.to_string() + "/charge_now")));
+                    current += try!(value_from_file(&(s.to_string() + "/current_now")));
                 }
             }
         }
@@ -92,16 +103,12 @@ impl Platform for PlatformImpl {
                 remaining_time: time(full, now, current),
             })
         } else {
-            Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+            Err(io::Error::new(io::ErrorKind::Other, "Missing battery information"))
         }
     }
 
     fn on_ac_power(&self) -> io::Result<bool> {
-        let mut s = String::new();
-        match fs::File::open("/sys/class/power_supply/AC/online").unwrap().read_to_string(&mut s)/*.expect("Failed to read file")*/ {
-		    Ok(_) => { Ok(s.split_at(1).0 != "0".to_string()) }
-		    Err(e) => { Err(io::Error::new(io::ErrorKind::Other, format!("Error: {} in function: on_ac_power()", e))) }
-		}
+        value_from_file("/sys/class/power_supply/AC/online").map(|v| v == 0)
     }
 
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
