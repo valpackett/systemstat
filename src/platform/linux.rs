@@ -32,7 +32,11 @@ fn capacity(charge_full: i32, charge_now: i32) -> f32 {
 }
 
 fn time(charge_full: i32, charge_now: i32, current_now: i32) -> Duration {
-    Duration::from_secs((charge_full - charge_now).abs() as u64 * 3600u64 / current_now as u64)
+    if current_now != 0 {
+	    Duration::from_secs((charge_full - charge_now).abs() as u64 * 3600u64 / current_now as u64)
+	} else {
+		Duration::new(0, 0)
+	}
 }
 
 pub struct PlatformImpl;
