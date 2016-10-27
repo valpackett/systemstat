@@ -108,7 +108,7 @@ impl Platform for PlatformImpl {
     }
 
     fn on_ac_power(&self) -> io::Result<bool> {
-        value_from_file("/sys/class/power_supply/AC/online").map(|v| v == 0)
+        value_from_file("/sys/class/power_supply/AC/online").map(|v| v == 1)
     }
 
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
