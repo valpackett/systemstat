@@ -23,7 +23,7 @@ fn main() {
     if let Ok(battery) = sys.battery_life() {
         print!("\nBattery: {}%, {}h{}m remaining",
                battery.remaining_capacity*100.0,
-               battery.remaining_time.as_secs() / 60,
+               battery.remaining_time.as_secs() / 3600,
                battery.remaining_time.as_secs() % 60);
     } else {
         print!("\nNo battery detected");
