@@ -24,16 +24,19 @@ macro_rules! sysctl_mib {
 }
 
 macro_rules! sysctl {
-    ($mib:expr, $dataptr:expr, $size:expr) => {
+    ($mib:expr, $dataptr:expr, $size:expr, $shouldcheck:expr) => {
         {
             let mib = &$mib;
             let mut size = $size;
             if unsafe { sysctl(&mib[0], mib.len() as u32,
-                               $dataptr as *mut _ as *mut c_void, &mut size, ptr::null(), 0) } != 0 {
+                               $dataptr as *mut _ as *mut c_void, &mut size, ptr::null(), 0) } != 0 && $shouldcheck {
                 return Err(io::Error::new(io::ErrorKind::Other, "sysctl() failed"))
             }
             size
         }
+    };
+    ($mib:expr, $dataptr:expr, $size:expr) => {
+        sysctl!($mib, $dataptr, $size, true)
     }
 }
 
@@ -97,7 +100,7 @@ impl Platform for PlatformImpl {
         let mut active: usize = 0; sysctl!(V_ACTIVE_COUNT, &mut active, mem::size_of::<usize>());
         let mut inactive: usize = 0; sysctl!(V_INACTIVE_COUNT, &mut inactive, mem::size_of::<usize>());
         let mut wired: usize = 0; sysctl!(V_WIRE_COUNT, &mut wired, mem::size_of::<usize>());
-        let mut cache: usize = 0; sysctl!(V_CACHE_COUNT, &mut cache, mem::size_of::<usize>());
+        let mut cache: usize = 0; sysctl!(V_CACHE_COUNT, &mut cache, mem::size_of::<usize>(), false);
         let mut free: usize = 0; sysctl!(V_FREE_COUNT, &mut free, mem::size_of::<usize>());
         let pmem = PlatformMemory {
             active: ByteSize::kib(active << *PAGESHIFT),
