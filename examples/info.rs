@@ -7,34 +7,50 @@ use systemstat::{System, Platform};
 fn main() {
     let sys = System::new();
 
-    let mounts = sys.mounts().unwrap();
-    println!("\nMounts:");
-    for mount in mounts.iter() {
-        println!("{} ---{}---> {} (available {} of {})",
-                 mount.fs_mounted_from, mount.fs_type, mount.fs_mounted_on, mount.avail, mount.total);
+    match sys.mounts() {
+        Ok(mounts) => {
+            println!("\nMounts:");
+            for mount in mounts.iter() {
+                println!("{} ---{}---> {} (available {} of {})",
+                         mount.fs_mounted_from, mount.fs_type, mount.fs_mounted_on, mount.avail, mount.total);
+            }
+        }
+        Err(x) => println!("\nMounts: error: {}", x)
     }
 
-    let netifs = sys.networks().unwrap();
-    println!("\nNetworks:");
-    for netif in netifs.values() {
-        println!("{} ({:?})", netif.name, netif.addrs);
+    match sys.networks() {
+        Ok(netifs) => {
+            println!("\nNetworks:");
+            for netif in netifs.values() {
+                println!("{} ({:?})", netif.name, netif.addrs);
+            }
+        }
+        Err(x) => println!("\nNetworks: error: {}", x)
     }
 
-    if let Ok(battery) = sys.battery_life() {
-        print!("\nBattery: {}%, {}h{}m remaining",
-               battery.remaining_capacity*100.0,
-               battery.remaining_time.as_secs() / 3600,
-               battery.remaining_time.as_secs() % 60);
-    } else {
-        print!("\nNo battery detected");
+    match sys.battery_life() {
+        Ok(battery) =>
+            print!("\nBattery: {}%, {}h{}m remaining",
+                   battery.remaining_capacity*100.0,
+                   battery.remaining_time.as_secs() / 3600,
+                   battery.remaining_time.as_secs() % 60),
+        Err(x) => print!("\nBattery: error: {}", x)
     }
-    println!(", AC power: {}", sys.on_ac_power().unwrap());
+    
+    match sys.on_ac_power() {
+        Ok(power) => println!(", AC power: {}", power),
+        Err(x) => println!(", AC power: error: {}", x)
+    }
 
-    let mem = sys.memory().unwrap();
-    println!("\nMemory: {}/{} ({:?})", mem.free, mem.total, mem.platform_memory);
+    match sys.memory() {
+        Ok(mem) => println!("\nMemory: {} used / {} ({} bytes) total ({:?})", mem.total - mem.free, mem.total, mem.total.as_usize(), mem.platform_memory),
+        Err(x) => println!("\nMemory: error: {}", x)
+    }
 
-    let loadavg = sys.load_average().unwrap();
-    println!("\nLoad average: {} {} {}", loadavg.one, loadavg.five, loadavg.fifteen);
+    match sys.load_average() {
+        Ok(loadavg) => println!("\nLoad average: {} {} {}", loadavg.one, loadavg.five, loadavg.fifteen),
+        Err(x) => println!("\nLoad average: error: {}", x)
+    }
 
     let cpu = sys.cpu_load_aggregate().unwrap();
     println!("\nMeasuring CPU load...");
