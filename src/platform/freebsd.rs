@@ -1,13 +1,13 @@
 // You are likely to be eaten by a grue.
 
 use std::{io, path, ptr, mem, ffi, slice, time};
-use std::ops::Sub;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::collections::BTreeMap;
 use libc::{c_void, c_int, c_schar, c_uchar, size_t, uid_t, sysctl, sysctlnametomib,
            getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in6, AF_INET, AF_INET6};
 use data::*;
 use super::common::*;
+use super::bsd;
 
 pub struct PlatformImpl;
 
@@ -41,16 +41,6 @@ macro_rules! sysctl {
 }
 
 lazy_static! {
-    static ref PAGESHIFT: c_int = {
-        let mut pagesize = unsafe { getpagesize() };
-        let mut pageshift = 0;
-        while pagesize > 1 {
-            pageshift += 1;
-            pagesize >>= 1;
-        }
-        pageshift - 10 // LOG1024
-    };
-
     static ref KERN_CP_TIMES: [c_int; 2] = sysctl_mib!(2, "kern.cp_times");
     static ref V_ACTIVE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_active_count");
     static ref V_INACTIVE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_inactive_count");
@@ -78,22 +68,16 @@ impl Platform for PlatformImpl {
     }
 
     fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>> {
-        let loads = try!(sysctl_cpu::measure());
+        let loads = try!(measure_cpu());
         Ok(DelayedMeasurement::new(
                 Box::new(move || Ok(loads.iter()
-                               .zip(try!(sysctl_cpu::measure()).iter())
+                               .zip(try!(measure_cpu()).iter())
                                .map(|(prev, now)| (*now - prev).to_cpuload())
                                .collect::<Vec<_>>()))))
     }
 
     fn load_average(&self) -> io::Result<LoadAverage> {
-        let mut loads: [f64; 3] = [0.0, 0.0, 0.0];
-        if unsafe { getloadavg(&mut loads[0], 3) } != 3 {
-            return Err(io::Error::new(io::ErrorKind::Other, "getloadavg() failed"))
-        }
-        Ok(LoadAverage {
-            one: loads[0] as f32, five: loads[1] as f32, fifteen: loads[2] as f32
-        })
+        bsd::load_average()
     }
 
     fn memory(&self) -> io::Result<Memory> {
@@ -103,11 +87,11 @@ impl Platform for PlatformImpl {
         let mut cache: usize = 0; sysctl!(V_CACHE_COUNT, &mut cache, mem::size_of::<usize>(), false);
         let mut free: usize = 0; sysctl!(V_FREE_COUNT, &mut free, mem::size_of::<usize>());
         let pmem = PlatformMemory {
-            active: ByteSize::kib(active << *PAGESHIFT),
-            inactive: ByteSize::kib(inactive << *PAGESHIFT),
-            wired: ByteSize::kib(wired << *PAGESHIFT),
-            cache: ByteSize::kib(cache << *PAGESHIFT),
-            free: ByteSize::kib(free << *PAGESHIFT),
+            active: ByteSize::kib(active << *bsd::PAGESHIFT),
+            inactive: ByteSize::kib(inactive << *bsd::PAGESHIFT),
+            wired: ByteSize::kib(wired << *bsd::PAGESHIFT),
+            cache: ByteSize::kib(cache << *bsd::PAGESHIFT),
+            free: ByteSize::kib(free << *bsd::PAGESHIFT),
         };
         Ok(Memory {
             total: pmem.active + pmem.inactive + pmem.wired + pmem.cache + pmem.free,
@@ -197,50 +181,12 @@ fn parse_addr(aptr: *const sockaddr) -> IpAddr {
     }
 }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-struct sysctl_cpu {
-    user: usize,
-    nice: usize,
-    system: usize,
-    interrupt: usize,
-    idle: usize,
-}
-
-impl<'a> Sub<&'a sysctl_cpu> for sysctl_cpu {
-    type Output = sysctl_cpu;
-
-    #[inline(always)]
-    fn sub(self, rhs: &sysctl_cpu) -> sysctl_cpu {
-        sysctl_cpu {
-            user: self.user - rhs.user,
-            nice: self.nice - rhs.nice,
-            system: self.system - rhs.system,
-            interrupt: self.interrupt - rhs.interrupt,
-            idle: self.idle - rhs.idle,
-        }
-    }
-}
-
-impl sysctl_cpu {
-    fn measure() -> io::Result<Vec<sysctl_cpu>> {
-        let cpus = *CP_TIMES_SIZE / mem::size_of::<sysctl_cpu>();
-        let mut data: Vec<sysctl_cpu> = Vec::with_capacity(cpus);
-        unsafe { data.set_len(cpus) };
-        sysctl!(KERN_CP_TIMES, &mut data[0], *CP_TIMES_SIZE);
-        Ok(data)
-    }
-
-    fn to_cpuload(&self) -> CPULoad {
-        let total = (self.user + self.nice + self.system + self.interrupt + self.idle) as f32;
-        CPULoad {
-            user: self.user as f32 / total,
-            nice: self.nice as f32 / total,
-            system: self.system as f32 / total,
-            interrupt: self.interrupt as f32 / total,
-            idle: self.idle as f32 / total,
-        }
-    }
+fn measure_cpu() -> io::Result<Vec<bsd::sysctl_cpu>> {
+    let cpus = *CP_TIMES_SIZE / mem::size_of::<bsd::sysctl_cpu>();
+    let mut data: Vec<bsd::sysctl_cpu> = Vec::with_capacity(cpus);
+    unsafe { data.set_len(cpus) };
+    sysctl!(KERN_CP_TIMES, &mut data[0], *CP_TIMES_SIZE);
+    Ok(data)
 }
 
 #[repr(C)]
@@ -296,5 +242,4 @@ extern "C" {
     fn getloadavg(loadavg: *mut f64, nelem: c_int) -> c_int;
     fn getmntinfo(mntbufp: *mut *mut statfs, flags: c_int) -> c_int;
     fn statfs(path: *const c_uchar, buf: *mut statfs) -> c_int;
-    fn getpagesize() -> c_int;
 }

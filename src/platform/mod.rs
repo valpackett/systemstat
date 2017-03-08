@@ -2,10 +2,18 @@
 pub mod common;
 pub use self::common::*;
 
+#[cfg(any(target_os = "freebsd", target_os = "openbsd"))]
+pub mod bsd;
+
 #[cfg(target_os = "freebsd")]
 pub mod freebsd;
 #[cfg(target_os = "freebsd")]
 pub use self::freebsd::PlatformImpl;
+
+#[cfg(target_os = "openbsd")]
+pub mod openbsd;
+#[cfg(target_os = "openbsd")]
+pub use self::openbsd::PlatformImpl;
 
 #[cfg(target_os = "linux")]
 pub mod linux;
