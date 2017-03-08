@@ -14,6 +14,7 @@ Unlike [sys-info-rs](https://github.com/FillZpp/sys-info-rs), this one is writte
 Supported platforms:
 
 - FreeBSD
+- Linux (incomplete)
 - *more coming soon*
 
 Originally written for [unixbar](https://github.com/myfreeweb/unixbar) :-)

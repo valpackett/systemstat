@@ -292,7 +292,7 @@ impl statfs {
 }
 
 #[link(name = "c")]
-extern {
+extern "C" {
     fn getloadavg(loadavg: *mut f64, nelem: c_int) -> c_int;
     fn getmntinfo(mntbufp: *mut *mut statfs, flags: c_int) -> c_int;
     fn statfs(path: *const c_uchar, buf: *mut statfs) -> c_int;
