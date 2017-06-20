@@ -1,12 +1,11 @@
 // You are likely to be eaten by a grue.
 
 use std::{io, path, ptr, mem, ffi, slice, time};
-use std::net::{Ipv4Addr, Ipv6Addr};
 use std::collections::BTreeMap;
-use libc::{c_void, c_int, c_schar, c_uchar, size_t, uid_t, sysctl, sysctlnametomib,
-           getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in6, AF_INET, AF_INET6};
+use libc::{c_void, c_int, c_schar, c_uchar, size_t, uid_t, sysctl, sysctlnametomib};
 use data::*;
 use super::common::*;
+use super::unix;
 use super::bsd;
 
 pub struct PlatformImpl;
@@ -77,7 +76,7 @@ impl Platform for PlatformImpl {
     }
 
     fn load_average(&self) -> io::Result<LoadAverage> {
-        bsd::load_average()
+        unix::load_average()
     }
 
     fn memory(&self) -> io::Result<Memory> {
@@ -133,53 +132,10 @@ impl Platform for PlatformImpl {
     }
 
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
-        let mut ifap: *mut ifaddrs = ptr::null_mut();
-        if unsafe { getifaddrs(&mut ifap) } != 0 {
-            return Err(io::Error::new(io::ErrorKind::Other, "getifaddrs() failed"))
-        }
-        let ifirst = ifap;
-        let mut result = BTreeMap::new();
-        while ifap != ptr::null_mut() {
-            let ifa = unsafe { (*ifap) };
-            let name = unsafe { ffi::CStr::from_ptr(ifa.ifa_name).to_string_lossy().into_owned() };
-            let mut entry = result.entry(name.clone()).or_insert(Network {
-                name: name,
-                addrs: Vec::new(),
-            });
-            let addr = parse_addr(ifa.ifa_addr);
-            if addr != IpAddr::Unsupported {
-                entry.addrs.push(NetworkAddrs {
-                    addr: addr,
-                    netmask: parse_addr(ifa.ifa_netmask),
-                });
-            }
-            ifap = unsafe { (*ifap).ifa_next };
-        }
-        unsafe { freeifaddrs(ifirst) };
-        Ok(result)
+        unix::networks()
     }
 }
 
-
-fn parse_addr(aptr: *const sockaddr) -> IpAddr {
-    if aptr == ptr::null() {
-        return IpAddr::Empty;
-    }
-    let addr = unsafe { *aptr };
-    match addr.sa_family as i32 {
-        AF_INET => IpAddr::V4(Ipv4Addr::new(addr.sa_data[2] as u8, addr.sa_data[3] as u8,
-                                            addr.sa_data[4] as u8, addr.sa_data[5] as u8)),
-        AF_INET6 => {
-            // This is horrible.
-            let addr6: *const sockaddr_in6 = unsafe { mem::transmute(aptr) };
-            let mut a: [u8; 16] = unsafe { (*addr6).sin6_addr.s6_addr };
-            &mut a[..].reverse();
-            let a: [u16; 8] = unsafe { mem::transmute(a) };
-            IpAddr::V6(Ipv6Addr::new(a[7], a[6], a[5], a[4], a[3], a[2], a[1], a[0]))
-        },
-        _ => IpAddr::Unsupported,
-    }
-}
 
 fn measure_cpu() -> io::Result<Vec<bsd::sysctl_cpu>> {
     let cpus = *CP_TIMES_SIZE / mem::size_of::<bsd::sysctl_cpu>();
