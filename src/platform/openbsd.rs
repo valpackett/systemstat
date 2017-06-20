@@ -5,8 +5,8 @@ use std::collections::BTreeMap;
 use libc::{c_void, c_int, c_uint, c_ulong, c_uchar, ioctl, sysctl};
 use data::*;
 use super::common::*;
+use super::unix;
 use super::bsd;
-
 
 pub struct PlatformImpl;
 
@@ -54,7 +54,7 @@ impl Platform for PlatformImpl {
     }
 
     fn load_average(&self) -> io::Result<LoadAverage> {
-        bsd::load_average()
+        unix::load_average()
     }
 
     fn memory(&self) -> io::Result<Memory> {
@@ -112,7 +112,7 @@ impl Platform for PlatformImpl {
     }
 
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        unix::networks()
     }
 }
 

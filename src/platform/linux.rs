@@ -1,13 +1,11 @@
-use std::{io, path, ptr, mem, ffi, slice, time, fs};
-use std::path::PathBuf;
+use std::{io, path, mem, fs};
 use std::io::Read;
-use std::ops::Sub;
-use std::net::{Ipv4Addr, Ipv6Addr};
 use std::collections::BTreeMap;
 use std::time::Duration;
-use libc::{c_void, c_int, c_ulong, c_ushort, c_uint, c_long, c_schar, c_uchar, size_t, uid_t};
+use libc::{c_ulong, c_ushort, c_uint, c_long, c_schar};
 use data::*;
 use super::common::*;
+use super::unix;
 
 fn read_file(path: &str) -> io::Result<String> {
     let mut s = String::new();
@@ -54,15 +52,7 @@ impl Platform for PlatformImpl {
     }
 
     fn load_average(&self) -> io::Result<LoadAverage> {
-        let mut loads: [f64; 3] = [0.0, 0.0, 0.0];
-        if unsafe { getloadavg(&mut loads[0], 3) } != 3 {
-            return Err(io::Error::new(io::ErrorKind::Other, "getloadavg() failed"));
-        }
-        Ok(LoadAverage {
-            one: loads[0] as f32,
-            five: loads[1] as f32,
-            fifteen: loads[2] as f32,
-        })
+        unix::load_average()
     }
 
     fn memory(&self) -> io::Result<Memory> {
@@ -127,7 +117,7 @@ impl Platform for PlatformImpl {
     }
 
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        unix::networks()
     }
 }
 
@@ -151,6 +141,5 @@ struct sysinfo {
 
 #[link(name = "c")]
 extern "C" {
-    fn getloadavg(loadavg: *mut f64, nelem: c_int) -> c_int;
     fn sysinfo(info: *mut sysinfo);
 }

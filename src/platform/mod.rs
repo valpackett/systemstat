@@ -2,6 +2,9 @@
 pub mod common;
 pub use self::common::*;
 
+#[cfg(unix)]
+pub mod unix;
+
 #[cfg(any(target_os = "freebsd", target_os = "openbsd"))]
 pub mod bsd;
 
