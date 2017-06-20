@@ -95,9 +95,12 @@ impl Platform for PlatformImpl {
             let f = p.file_name().unwrap().to_str().unwrap();
             if f.len() > 3 {
                 if f.split_at(3).0 == "BAT" {
-                    full += try!(value_from_file(&(s.to_string() + "/charge_full")));
-                    now += try!(value_from_file(&(s.to_string() + "/charge_now")));
-                    current += try!(value_from_file(&(s.to_string() + "/current_now")));
+                    full += try!(value_from_file(&(s.to_string() + "/energy_full"))
+                                 .or_else(|_| value_from_file(&(s.to_string() + "/charge_full"))));
+                    now += try!(value_from_file(&(s.to_string() + "/energy_now"))
+                                .or_else(|_| value_from_file(&(s.to_string() + "/charge_now"))));
+                    current += try!(value_from_file(&(s.to_string() + "/energy_now"))
+                                    .or_else(|_| value_from_file(&(s.to_string() + "/current_now"))));
                 }
             }
         }
