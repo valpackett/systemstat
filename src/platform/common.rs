@@ -35,15 +35,15 @@ pub trait Platform {
     /// Returns the system uptime.
     fn uptime(&self) -> io::Result<Duration> {
         self.boot_time().and_then(|bt| {
-            time::Duration::to_std(&UTC::now().signed_duration_since(bt))
+            time::Duration::to_std(&Utc::now().signed_duration_since(bt))
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, "Could not process time"))
         })
     }
 
     /// Returns the system boot time.
-    fn boot_time(&self) -> io::Result<DateTime<UTC>> {
+    fn boot_time(&self) -> io::Result<DateTime<Utc>> {
         self.uptime().and_then(|ut| {
-            Ok(UTC::now() - try!(time::Duration::from_std(ut)
+            Ok(Utc::now() - try!(time::Duration::from_std(ut)
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, "Could not process time"))))
         })
     }
