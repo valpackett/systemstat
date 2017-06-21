@@ -1,7 +1,6 @@
 // You are likely to be eaten by a grue.
 
 use std::{io, path, ptr, mem, ffi, slice, time};
-use std::collections::BTreeMap;
 use libc::{c_void, c_int, c_schar, c_uchar, size_t, uid_t, sysctl, sysctlnametomib};
 use data::*;
 use super::common::*;
