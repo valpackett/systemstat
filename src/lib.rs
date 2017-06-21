@@ -3,6 +3,8 @@
 
 extern crate libc;
 extern crate bytesize;
+extern crate time;
+extern crate chrono;
 #[macro_use] extern crate lazy_static;
 
 pub mod platform;

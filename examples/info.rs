@@ -52,6 +52,16 @@ fn main() {
         Err(x) => println!("\nLoad average: error: {}", x)
     }
 
+    match sys.uptime() {
+        Ok(uptime) => println!("\nUptime: {:?}", uptime),
+        Err(x) => println!("\nUptime: error: {}", x)
+    }
+
+    match sys.boot_time() {
+        Ok(boot_time) => println!("\nBoot time: {}", boot_time),
+        Err(x) => println!("\nBoot time: error: {}", x)
+    }
+
     let cpu = sys.cpu_load_aggregate().unwrap();
     println!("\nMeasuring CPU load...");
     thread::sleep(Duration::from_secs(1));

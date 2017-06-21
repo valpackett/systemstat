@@ -92,6 +92,11 @@ impl Platform for PlatformImpl {
         })
     }
 
+    fn uptime(&self) -> io::Result<Duration> {
+        let mut info: sysinfo = unsafe { mem::zeroed() };
+        unsafe { sysinfo(&mut info) };
+        Ok(Duration::from_secs(info.uptime as u64))
+    }
 
     fn battery_life(&self) -> io::Result<BatteryLife> {
         let dir = "/sys/class/power_supply";
