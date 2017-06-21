@@ -1,7 +1,7 @@
 // You are likely to be eaten by a grue.
 
 use std::{io, path, ptr, mem, ffi, slice, time};
-use libc::{c_void, c_int, c_schar, c_uchar, size_t, uid_t, sysctl, sysctlnametomib};
+use libc::{c_void, c_int, c_schar, c_uchar, size_t, uid_t, sysctl, sysctlnametomib, timeval};
 use data::*;
 use super::common::*;
 use super::unix;
@@ -40,6 +40,7 @@ macro_rules! sysctl {
 
 lazy_static! {
     static ref KERN_CP_TIMES: [c_int; 2] = sysctl_mib!(2, "kern.cp_times");
+    static ref KERN_BOOTTIME: [c_int; 2] = sysctl_mib!(2, "kern.boottime");
     static ref V_ACTIVE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_active_count");
     static ref V_INACTIVE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_inactive_count");
     static ref V_WIRE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_wire_count");
@@ -99,6 +100,12 @@ impl Platform for PlatformImpl {
             free: pmem.inactive + pmem.cache + arc + pmem.free,
             platform_memory: pmem,
         })
+    }
+
+    fn boot_time(&self) -> io::Result<DateTime<UTC>> {
+        let mut data: timeval = unsafe { mem::zeroed() };
+        sysctl!(KERN_BOOTTIME, &mut data, mem::size_of::<timeval>());
+        Ok(DateTime::<UTC>::from_utc(NaiveDateTime::from_timestamp(data.tv_sec, data.tv_usec as u32), UTC))
     }
 
     fn battery_life(&self) -> io::Result<BatteryLife> {

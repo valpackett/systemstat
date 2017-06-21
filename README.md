@@ -2,9 +2,10 @@
 
 A Rust library for getting system information/statistics on UNIX-like systems:
 
-- memory usage
 - CPU load
 - load average
+- memory usage
+- uptime / boot time
 - battery life
 - filesystem mounts (and disk usage)
 - network interfaces

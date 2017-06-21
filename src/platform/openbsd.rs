@@ -1,7 +1,7 @@
 use std::{io, path, ptr, time, fs, mem};
 use std::os::unix::io::AsRawFd;
 use std::mem::size_of;
-use libc::{c_void, c_int, c_uint, c_ulong, c_uchar, ioctl, sysctl};
+use libc::{c_void, c_int, c_uint, c_ulong, c_uchar, ioctl, sysctl, timeval};
 use data::*;
 use super::common::*;
 use super::unix;
@@ -31,6 +31,7 @@ lazy_static! {
     // OpenBSD does not have sysctlnametomib, so more copy-pasting of magic numbers from C headers :(
     static ref HW_NCPU: [c_int; 2] = [6, 3];
     static ref KERN_CPTIME2: [c_int; 3] = [1, 71, 0];
+    static ref KERN_BOOTTIME: [c_int; 2] = [1, 21];
     static ref VM_UVMEXP: [c_int; 2] = [2, 4];
     static ref VFS_BCACHESTAT: [c_int; 3] = [10, 0, 3];
 }
@@ -72,6 +73,12 @@ impl Platform for PlatformImpl {
             free: pmem.inactive + pmem.free,
             platform_memory: pmem,
         })
+    }
+
+    fn boot_time(&self) -> io::Result<DateTime<UTC>> {
+        let mut data: timeval = unsafe { mem::zeroed() };
+        sysctl!(KERN_BOOTTIME, &mut data, mem::size_of::<timeval>());
+        Ok(DateTime::<UTC>::from_utc(NaiveDateTime::from_timestamp(data.tv_sec, data.tv_usec as u32), UTC))
     }
 
     // /dev/apm is probably the nicest interface I've seen :)
