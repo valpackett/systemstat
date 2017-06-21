@@ -60,6 +60,7 @@ impl Platform for PlatformImpl {
     fn memory(&self) -> io::Result<Memory> {
         let mut uvm_info = uvmexp::default(); sysctl!(VM_UVMEXP, &mut uvm_info, mem::size_of::<uvmexp>());
         let mut bcache_info = bcachestats::default(); sysctl!(VFS_BCACHESTAT, &mut bcache_info, mem::size_of::<bcachestats>());
+        let total = ByteSize::kib((uvm_info.npages << *bsd::PAGESHIFT) as usize);
         let pmem = PlatformMemory {
             active: ByteSize::kib((uvm_info.active << *bsd::PAGESHIFT) as usize),
             inactive: ByteSize::kib((uvm_info.inactive << *bsd::PAGESHIFT) as usize),
@@ -69,8 +70,8 @@ impl Platform for PlatformImpl {
             paging: ByteSize::kib((uvm_info.paging << *bsd::PAGESHIFT) as usize),
         };
         Ok(Memory {
-            total: pmem.active + pmem.inactive + pmem.wired + pmem.cache + pmem.free,
-            free: pmem.inactive + pmem.free,
+            total: total,
+            free: pmem.inactive + pmem.cache + pmem.free + pmem.paging,
             platform_memory: pmem,
         })
     }
@@ -163,6 +164,9 @@ struct bcachestats {
     delwribufs: i64,		/* delayed write buffers */
     kvaslots: i64,		/* kva slots total */
     kvaslots_avail: i64,		/* available kva slots */
+    highflips: i64,		/* total flips to above DMA */
+    highflops: i64,		/* total failed flips to above DMA */
+    dmaflips: i64,		/* total flips from high to DMA */
 }
 
 #[derive(Default, Debug)]
