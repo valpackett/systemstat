@@ -29,9 +29,16 @@ fn capacity(charge_full: i32, charge_now: i32) -> f32 {
     charge_now as f32 / charge_full as f32
 }
 
-fn time(charge_full: i32, charge_now: i32, current_now: i32) -> Duration {
+fn time(on_ac: bool, charge_full: i32, charge_now: i32, current_now: i32) -> Duration {
     if current_now != 0 {
-        Duration::from_secs((charge_full - charge_now).abs() as u64 * 3600u64 / current_now as u64)
+        if on_ac {
+            // Charge time
+            Duration::from_secs((charge_full - charge_now).abs() as u64 * 3600u64 / current_now as u64)
+        }
+        else {
+            // Discharge time
+            Duration::from_secs(charge_now as u64 * 3600u64 / current_now as u64)
+        }
     } else {
         Duration::new(0, 0)
     }
@@ -89,15 +96,20 @@ impl Platform for PlatformImpl {
                                  .or_else(|_| value_from_file(&(s.to_string() + "/charge_full"))));
                     now += try!(value_from_file(&(s.to_string() + "/energy_now"))
                                 .or_else(|_| value_from_file(&(s.to_string() + "/charge_now"))));
-                    current += try!(value_from_file(&(s.to_string() + "/energy_now"))
+                    current += try!(value_from_file(&(s.to_string() + "/power_now"))
                                     .or_else(|_| value_from_file(&(s.to_string() + "/current_now"))));
                 }
             }
         }
         if full != 0 {
+            let on_ac =
+                match self.on_ac_power() {
+                    Ok(true) => true,
+                    _ => false,
+                };
             Ok(BatteryLife {
                 remaining_capacity: capacity(full, now),
-                remaining_time: time(full, now, current),
+                remaining_time: time(on_ac, full, now, current),
             })
         } else {
             Err(io::Error::new(io::ErrorKind::Other, "Missing battery information"))
