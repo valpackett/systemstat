@@ -63,6 +63,7 @@ pub struct PlatformMemory {
     pub inactive: ByteSize,
     pub wired: ByteSize,
     pub cache: ByteSize,
+    pub zfs_arc: ByteSize,
     pub free: ByteSize,
 }
 
