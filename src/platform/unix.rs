@@ -1,7 +1,5 @@
 use std::{io, ffi, ptr, mem};
-use std::net::{Ipv4Addr, Ipv6Addr};
 use libc::{c_int, getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in6, AF_INET, AF_INET6};
-use std::collections::BTreeMap;
 use data::*;
 
 pub fn load_average() -> io::Result<LoadAverage> {

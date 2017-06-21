@@ -4,7 +4,8 @@
 
 use std::io;
 use std::time::Duration;
-use std::net::{Ipv4Addr, Ipv6Addr};
+pub use std::net::{Ipv4Addr, Ipv6Addr};
+pub use std::collections::BTreeMap;
 pub use bytesize::ByteSize;
 
 /// A wrapper for a measurement that takes time.
@@ -79,10 +80,7 @@ pub struct PlatformMemory {
 #[cfg(target_os = "linux")]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {
-    pub total: ByteSize,
-    pub free: ByteSize,
-    pub shared: ByteSize,
-    pub buffer: ByteSize,
+    pub meminfo: BTreeMap<String, ByteSize>,
 }
 
 #[derive(Debug, Clone)]

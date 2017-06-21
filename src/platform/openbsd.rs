@@ -1,7 +1,6 @@
 use std::{io, path, ptr, time, fs, mem};
 use std::os::unix::io::AsRawFd;
 use std::mem::size_of;
-use std::collections::BTreeMap;
 use libc::{c_void, c_int, c_uint, c_ulong, c_uchar, ioctl, sysctl};
 use data::*;
 use super::common::*;

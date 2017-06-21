@@ -1,6 +1,5 @@
 use std::{io, path, mem, fs};
 use std::io::Read;
-use std::collections::BTreeMap;
 use std::time::Duration;
 use libc::{c_ulong, c_ushort, c_uint, c_long, c_schar};
 use data::*;
@@ -63,19 +62,33 @@ impl Platform for PlatformImpl {
     }
 
     fn memory(&self) -> io::Result<Memory> {
-        let mut info: sysinfo = unsafe { mem::zeroed() };
-        unsafe { sysinfo(&mut info) };
-        let unit = info.mem_unit as usize;
-        let pmem = PlatformMemory {
-            total: ByteSize::b(info.totalram as usize * unit),
-            free: ByteSize::b(info.freeram as usize * unit),
-            shared: ByteSize::b(info.sharedram as usize * unit),
-            buffer: ByteSize::b(info.bufferram as usize * unit),
+        let mut meminfo = BTreeMap::new();
+        if let Ok(meminfo_str) = read_file("/proc/meminfo") {
+            for line in meminfo_str.lines() {
+                if let Some(colon_idx) = line.find(':') {
+                    let (name, val) = line.split_at(colon_idx);
+                    if let Ok(size) = val.trim().trim_left_matches(':').trim().trim_right_matches(char::is_alphabetic).trim().parse::<usize>() {
+                        meminfo.insert(name.to_owned(), ByteSize::kib(size));
+                    }
+                }
+            }
+        } else { // If there's no procfs, e.g. in a chroot without mounting it or something
+            let mut info: sysinfo = unsafe { mem::zeroed() };
+            unsafe { sysinfo(&mut info) };
+            let unit = info.mem_unit as usize;
+            meminfo.insert("MemTotal".to_owned(), ByteSize::b(info.totalram as usize * unit));
+            meminfo.insert("MemFree".to_owned(), ByteSize::b(info.freeram as usize * unit));
+            meminfo.insert("Shmem".to_owned(), ByteSize::b(info.sharedram as usize * unit));
+            meminfo.insert("Buffers".to_owned(), ByteSize::b(info.bufferram as usize * unit));
         };
         Ok(Memory {
-            total: pmem.total,
-            free: pmem.free,
-            platform_memory: pmem,
+            total: meminfo.get("MemTotal").map(|x| x.clone()).unwrap_or(ByteSize::b(0)),
+            free: meminfo.get("MemFree").map(|x| x.clone()).unwrap_or(ByteSize::b(0))
+                + meminfo.get("Buffers").map(|x| x.clone()).unwrap_or(ByteSize::b(0))
+                + meminfo.get("Cached").map(|x| x.clone()).unwrap_or(ByteSize::b(0))
+                + meminfo.get("SReclaimable").map(|x| x.clone()).unwrap_or(ByteSize::b(0))
+                - meminfo.get("Shmem").map(|x| x.clone()).unwrap_or(ByteSize::b(0)),
+            platform_memory: PlatformMemory { meminfo: meminfo },
         })
     }
 
