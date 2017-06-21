@@ -45,6 +45,7 @@ lazy_static! {
     static ref V_WIRE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_wire_count");
     static ref V_CACHE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_cache_count");
     static ref V_FREE_COUNT: [c_int; 4] = sysctl_mib!(4, "vm.stats.vm.v_free_count");
+    static ref ZFS_ARC_SIZE: [c_int; 5] = sysctl_mib!(5, "kstat.zfs.misc.arcstats.size");
     static ref BATTERY_LIFE: [c_int; 4] = sysctl_mib!(4, "hw.acpi.battery.life");
     static ref BATTERY_TIME: [c_int; 4] = sysctl_mib!(4, "hw.acpi.battery.time");
     static ref ACLINE: [c_int; 3] = sysctl_mib!(3, "hw.acpi.acline");
@@ -84,16 +85,18 @@ impl Platform for PlatformImpl {
         let mut wired: usize = 0; sysctl!(V_WIRE_COUNT, &mut wired, mem::size_of::<usize>());
         let mut cache: usize = 0; sysctl!(V_CACHE_COUNT, &mut cache, mem::size_of::<usize>(), false);
         let mut free: usize = 0; sysctl!(V_FREE_COUNT, &mut free, mem::size_of::<usize>());
+        let arc = ByteSize::b(zfs_arc_size().unwrap_or(0));
         let pmem = PlatformMemory {
             active: ByteSize::kib(active << *bsd::PAGESHIFT),
             inactive: ByteSize::kib(inactive << *bsd::PAGESHIFT),
-            wired: ByteSize::kib(wired << *bsd::PAGESHIFT),
+            wired: ByteSize::kib(wired << *bsd::PAGESHIFT) - arc,
             cache: ByteSize::kib(cache << *bsd::PAGESHIFT),
+            zfs_arc: arc,
             free: ByteSize::kib(free << *bsd::PAGESHIFT),
         };
         Ok(Memory {
-            total: pmem.active + pmem.inactive + pmem.wired + pmem.cache + pmem.free,
-            free: pmem.inactive + pmem.cache + pmem.free,
+            total: pmem.active + pmem.inactive + pmem.wired + pmem.cache + arc + pmem.free,
+            free: pmem.inactive + pmem.cache + arc + pmem.free,
             platform_memory: pmem,
         })
     }
@@ -142,6 +145,12 @@ fn measure_cpu() -> io::Result<Vec<bsd::sysctl_cpu>> {
     unsafe { data.set_len(cpus) };
     sysctl!(KERN_CP_TIMES, &mut data[0], *CP_TIMES_SIZE);
     Ok(data)
+}
+
+fn zfs_arc_size() -> io::Result<usize> {
+    let mut zfs_arc: usize = 0;
+    sysctl!(ZFS_ARC_SIZE, &mut zfs_arc, mem::size_of::<usize>());
+    Ok(zfs_arc)
 }
 
 #[repr(C)]
