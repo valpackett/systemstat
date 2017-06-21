@@ -11,6 +11,6 @@ repository = "https://github.com/myfreeweb/systemstat"
 
 [dependencies]
 libc = "0.2"
-chrono = "0.2"
-lazy_static = "0.1"
+chrono = "0.3"
+lazy_static = "0.2"
 bytesize = "0.1"
