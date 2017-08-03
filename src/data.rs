@@ -8,6 +8,7 @@ pub use std::net::{Ipv4Addr, Ipv6Addr};
 pub use std::collections::BTreeMap;
 pub use chrono::{DateTime, Utc, NaiveDateTime};
 pub use bytesize::ByteSize;
+use std::ops::Sub;
 
 /// A wrapper for a measurement that takes time.
 ///
@@ -46,6 +47,55 @@ impl CPULoad {
             system: (self.system + rhs.system) / 2.0,
             interrupt: (self.interrupt + rhs.interrupt) / 2.0,
             idle: (self.idle + rhs.idle) / 2.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CpuTime {
+    pub user: usize,
+    pub nice: usize,
+    pub system: usize,
+    pub interrupt: usize,
+    pub idle: usize,
+    pub other: usize,
+}
+
+impl<'a> Sub<&'a CpuTime> for CpuTime {
+    type Output = CpuTime;
+
+    #[inline(always)]
+    fn sub(self, rhs: &CpuTime) -> CpuTime {
+        CpuTime {
+            user: self.user - rhs.user,
+            nice: self.nice - rhs.nice,
+            system: self.system - rhs.system,
+            interrupt: self.interrupt - rhs.interrupt,
+            idle: self.idle - rhs.idle,
+            other: self.other - rhs.other,
+        }
+    }
+}
+
+impl CpuTime {
+    pub fn to_cpuload(&self) -> CPULoad {
+        let total = self.user + self.nice + self.system + self.interrupt + self.idle + self.other;
+        if total == 0 {
+            CPULoad {
+                user: 0.0,
+                nice: 0.0,
+                system: 0.0,
+                interrupt: 0.0,
+                idle: 0.0,
+            }
+        } else {
+            CPULoad {
+                user: self.user as f32 / total as f32,
+                nice: self.nice as f32 / total as f32,
+                system: self.system as f32 / total as f32,
+                interrupt: self.interrupt as f32 / total as f32,
+                idle: self.idle as f32 / total as f32,
+            }
         }
     }
 }

@@ -7,7 +7,10 @@
 extern crate bytesize;
 extern crate time;
 extern crate chrono;
-#[macro_use] extern crate lazy_static;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate nom;
 
 pub mod platform;
 pub mod data;

@@ -123,8 +123,9 @@ impl Platform for PlatformImpl {
     }
 }
 
-fn measure_cpu() -> io::Result<Vec<bsd::sysctl_cpu>> {
-    let mut cpus: usize = 0; sysctl!(HW_NCPU, &mut cpus, mem::size_of::<usize>());
+fn measure_cpu() -> io::Result<Vec<CpuTime>> {
+    let mut cpus: usize = 0;
+    sysctl!(HW_NCPU, &mut cpus, mem::size_of::<usize>());
     let mut data: Vec<bsd::sysctl_cpu> = Vec::with_capacity(cpus);
     unsafe { data.set_len(cpus) };
     for i in 0..cpus {
@@ -132,7 +133,7 @@ fn measure_cpu() -> io::Result<Vec<bsd::sysctl_cpu>> {
         mib[2] = i as i32;
         sysctl!(mib, &mut data[i], mem::size_of::<bsd::sysctl_cpu>());
     }
-    Ok(data)
+    Ok(data.into_iter().map(|cpu| cpu.into()).collect())
 }
 
 #[derive(Default, Debug)]

@@ -5,6 +5,8 @@ use libc::{c_ulong, c_ushort, c_uint, c_long, c_schar};
 use data::*;
 use super::common::*;
 use super::unix;
+use nom::{digit, not_line_ending, space};
+use std::str;
 
 fn read_file(path: &str) -> io::Result<String> {
     let mut s = String::new();
@@ -43,6 +45,64 @@ fn time(on_ac: bool, charge_full: i32, charge_now: i32, current_now: i32) -> Dur
     }
 }
 
+/// Parse an unsigned integer out of a string, surrounded by whitespace
+named!(
+    usize_s<usize>,
+    ws!(map_res!(
+        map_res!(digit, str::from_utf8),
+        str::FromStr::from_str
+    ))
+);
+
+/// Parse `cpuX`, where X is a number
+named!(proc_stat_cpu_prefix<()>, do_parse!(tag!("cpu") >> digit >> ()));
+
+/// Parse a `/proc/stat` CPU line into a `CpuTime` struct
+named!(
+    proc_stat_cpu_time<CpuTime>,
+    do_parse!(
+        ws!(proc_stat_cpu_prefix) >>
+        user: usize_s >>
+        nice: usize_s >>
+        system: usize_s >>
+        idle: usize_s >>
+        iowait: usize_s >>
+        irq: usize_s >>
+            (CpuTime {
+                 user: user,
+                 nice: nice,
+                 system: system,
+                 idle: idle,
+                 interrupt: irq,
+                 other: iowait,
+             })
+    )
+);
+
+/// Parse the top CPU load aggregate line of `/proc/stat`
+named!(proc_stat_cpu_aggregate<()>, do_parse!(tag!("cpu") >> space >> ()));
+
+/// Parse `/proc/stat` to extract per-CPU loads
+named!(
+    proc_stat_cpu_times<Vec<CpuTime>>,
+    do_parse!(
+        ws!(flat_map!(not_line_ending, proc_stat_cpu_aggregate)) >>
+        result: many1!(ws!(flat_map!(not_line_ending, proc_stat_cpu_time))) >>
+        (result)
+    )
+);
+
+/// Get the current per-CPU `CpuTime` statistics
+fn cpu_time() -> io::Result<Vec<CpuTime>> {
+    read_file("/proc/stat").and_then(|data| {
+        proc_stat_cpu_times(data.as_bytes()).to_result().map_err(
+            |err| {
+                io::Error::new(io::ErrorKind::InvalidData, err)
+            },
+        )
+    })
+}
+
 pub struct PlatformImpl;
 
 /// An implementation of `Platform` for Linux.
@@ -54,7 +114,17 @@ impl Platform for PlatformImpl {
     }
 
     fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        cpu_time().map(|times| {
+            DelayedMeasurement::new(Box::new(move || {
+                cpu_time().map(|delay_times| {
+                    delay_times
+                        .iter()
+                        .zip(times.iter())
+                        .map(|(now, prev)| (*now - prev).to_cpuload())
+                        .collect::<Vec<_>>()
+                })
+            }))
+        })
     }
 
     fn load_average(&self) -> io::Result<LoadAverage> {

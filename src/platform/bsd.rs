@@ -1,5 +1,4 @@
 use libc::c_int;
-use std::ops::Sub;
 use data::*;
 
 lazy_static! {
@@ -24,33 +23,15 @@ pub struct sysctl_cpu {
     idle: usize,
 }
 
-impl<'a> Sub<&'a sysctl_cpu> for sysctl_cpu {
-    type Output = sysctl_cpu;
-
-    #[inline(always)]
-    fn sub(self, rhs: &sysctl_cpu) -> sysctl_cpu {
-        sysctl_cpu {
-            user: self.user - rhs.user,
-            nice: self.nice - rhs.nice,
-            system: self.system - rhs.system,
-            interrupt: self.interrupt - rhs.interrupt,
-            idle: self.idle - rhs.idle,
-        }
-    }
-}
-
-impl sysctl_cpu {
-    pub fn to_cpuload(&self) -> CPULoad {
-        let mut total = (self.user + self.nice + self.system + self.interrupt + self.idle) as f32;
-        if total < 0.00001 {
-            total = 0.00001;
-        }
-        CPULoad {
-            user: self.user as f32 / total,
-            nice: self.nice as f32 / total,
-            system: self.system as f32 / total,
-            interrupt: self.interrupt as f32 / total,
-            idle: self.idle as f32 / total,
+impl From<sysctl_cpu> for CpuTime {
+    fn from(cpu: sysctl_cpu) -> CpuTime {
+        CpuTime {
+            user: cpu.user,
+            nice: cpu.nice,
+            system: cpu.system,
+            interrupt: cpu.interrupt,
+            idle: cpu.idle,
+            other: 0,
         }
     }
 }
