@@ -146,12 +146,12 @@ impl Platform for PlatformImpl {
 }
 
 
-fn measure_cpu() -> io::Result<Vec<bsd::sysctl_cpu>> {
+fn measure_cpu() -> io::Result<Vec<CpuTime>> {
     let cpus = *CP_TIMES_SIZE / mem::size_of::<bsd::sysctl_cpu>();
     let mut data: Vec<bsd::sysctl_cpu> = Vec::with_capacity(cpus);
     unsafe { data.set_len(cpus) };
     sysctl!(KERN_CP_TIMES, &mut data[0], *CP_TIMES_SIZE);
-    Ok(data)
+    Ok(data.into_iter().map(|cpu| cpu.into()).collect())
 }
 
 fn zfs_arc_size() -> io::Result<usize> {
