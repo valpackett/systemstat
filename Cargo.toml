@@ -10,8 +10,14 @@ homepage = "https://github.com/myfreeweb/systemstat"
 repository = "https://github.com/myfreeweb/systemstat"
 
 [dependencies]
-libc = "0.2"
 time = "0.1"
 chrono = "0.4"
 lazy_static = "0.2"
 bytesize = "0.1"
+
+[target.'cfg(not(windows))'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+winapi = "0.2"
+kernel32-sys = "0.2"

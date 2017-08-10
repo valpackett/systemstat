@@ -2,6 +2,10 @@
 pub mod common;
 pub use self::common::*;
 
+#[cfg(windows)]
+pub mod windows;
+pub use self::windows::PlatformImpl;
+
 #[cfg(unix)]
 pub mod unix;
 
