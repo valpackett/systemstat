@@ -1,6 +1,6 @@
 # systemstat [![unlicense](https://img.shields.io/badge/un-license-green.svg?style=flat)](http://unlicense.org)
 
-A Rust library for getting system information/statistics on UNIX-like systems:
+A Rust library for getting system information/statistics:
 
 - CPU load
 - load average
@@ -17,6 +17,7 @@ Supported platforms:
 - FreeBSD
 - OpenBSD (incomplete)
 - Linux (incomplete)
+- Windows (incomplete)
 - *more coming soon*
 
 Originally written for [unixbar](https://github.com/myfreeweb/unixbar) :-)

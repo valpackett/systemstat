@@ -57,6 +57,19 @@ pub struct LoadAverage {
     pub fifteen: f32,
 }
 
+#[cfg(target_os = "windows")]
+#[derive(Debug, Clone)]
+pub struct PlatformMemory {
+    pub load: u32,
+    pub total_phys: ByteSize,
+    pub avail_phys: ByteSize,
+    pub total_pagefile: ByteSize,
+    pub avail_pagefile: ByteSize,
+    pub total_virt: ByteSize,
+    pub avail_virt: ByteSize,
+    pub avail_ext: ByteSize,
+}
+
 #[cfg(target_os = "freebsd")]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {

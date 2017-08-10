@@ -1,7 +1,9 @@
 //! This library provides a way to access system information such as CPU load, mounted filesystems,
 //! network interfaces, etc.
 
-extern crate libc;
+#[cfg(not(windows))] extern crate libc;
+#[cfg(windows)] extern crate winapi;
+#[cfg(windows)] extern crate kernel32;
 extern crate bytesize;
 extern crate time;
 extern crate chrono;
