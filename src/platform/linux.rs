@@ -1,13 +1,13 @@
 use std::{io, path, mem, fs};
 use std::io::Read;
 use std::time::Duration;
-use libc::{c_ulong, c_ushort, c_uint, c_long, c_schar};
+use libc::{c_ulong, c_ushort, c_uint, c_long, c_schar, c_char};
+use libc::statvfs;
 use data::*;
 use super::common::*;
 use super::unix;
 use nom::{digit, not_line_ending, space, is_space};
 use std::str;
-use nix::sys::statvfs::vfs::Statvfs;
 use std::path::Path;
 
 fn read_file(path: &str) -> io::Result<String> {
@@ -181,6 +181,25 @@ named!(
     many1!(ws!(flat_map!(not_line_ending, proc_mounts_line)))
 );
 
+/// Stat a mountpoint to gather filesystem statistics
+fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
+    let mut info: statvfs = unsafe { mem::zeroed() };
+    let result = unsafe { statvfs(mount.target.as_ptr() as *const c_char, &mut info) };
+    match result {
+        0 => Ok(Filesystem {
+            files: info.f_files as usize,
+            free: ByteSize::b(info.f_bfree as usize * info.f_bsize as usize),
+            avail: ByteSize::b(info.f_bavail as usize * info.f_bsize as usize),
+            total: ByteSize::b(info.f_blocks as usize * info.f_bsize as usize),
+            name_max: info.f_namemax as usize,
+            fs_type: mount.fstype,
+            fs_mounted_from: mount.source,
+            fs_mounted_on: mount.target,
+        }),
+        _ => Err(io::Error::last_os_error()),
+    }
+}
+
 pub struct PlatformImpl;
 
 /// An implementation of `Platform` for Linux.
@@ -316,33 +335,25 @@ impl Platform for PlatformImpl {
             .map(|mounts| {
                 mounts
                     .into_iter()
-                    .filter_map(|mount| {
-                        Statvfs::for_path(&mount.target as &str)
-                            .map(move |s| {
-                                Filesystem {
-                                    files: s.f_files as usize,
-                                    free: ByteSize::b(s.f_bfree as usize * s.f_bsize as usize),
-                                    avail: ByteSize::b(s.f_bavail as usize * s.f_bsize as usize),
-                                    total: ByteSize::b(s.f_blocks as usize * s.f_bsize as usize),
-                                    name_max: s.f_namemax as usize,
-                                    fs_type: mount.fstype,
-                                    fs_mounted_from: mount.source,
-                                    fs_mounted_on: mount.target,
-                                }
-                            })
-                            .ok()
-                    })
+                    .filter_map(|mount| stat_mount(mount).ok())
                     .collect()
             })
     }
 
     fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem> {
-        self.mounts().and_then(|mounts| {
-            mounts
-                .into_iter()
-                .find(|mount| Path::new(&mount.fs_mounted_on) == path.as_ref())
-                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No such mount"))
-        })
+        read_file("/proc/mounts")
+            .and_then(|data| {
+                proc_mounts(data.as_bytes()).to_result().map_err(|err| {
+                    io::Error::new(io::ErrorKind::InvalidData, err)
+                })
+            })
+            .and_then(|mounts| {
+                mounts
+                    .into_iter()
+                    .find(|mount| Path::new(&mount.target) == path.as_ref())
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No such mount"))
+            })
+            .and_then(stat_mount)
     }
 
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
