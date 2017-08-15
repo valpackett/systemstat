@@ -103,6 +103,48 @@ fn cpu_time() -> io::Result<Vec<CpuTime>> {
     })
 }
 
+/// Parse a `/proc/meminfo` line into (key, ByteSize)
+named!(
+    proc_meminfo_line<(String, ByteSize)>,
+    complete!(do_parse!(
+        key: flat_map!(take_until!(":"), parse_to!(String)) >>
+        tag!(":") >>
+        value: usize_s >>
+        ws!(tag!("kB")) >>
+        ((key, ByteSize::kib(value)))
+    ))
+);
+
+/// Optionally parse a `/proc/meminfo` line`
+named!(
+    proc_meminfo_line_opt<Option<(String, ByteSize)>>,
+    opt!(proc_meminfo_line)
+);
+
+/// Parse `/proc/meminfo` into a hashmap
+named!(
+    proc_meminfo<BTreeMap<String, ByteSize>>,
+    fold_many0!(
+        ws!(flat_map!(not_line_ending, proc_meminfo_line_opt)),
+        BTreeMap::new(),
+        |mut map: BTreeMap<String, ByteSize>, opt| {
+            if let Some((key, val)) = opt {
+                map.insert(key, val);
+            }
+            map
+        }
+    )
+);
+
+/// Get memory statistics
+fn memory_stats() -> io::Result<BTreeMap<String, ByteSize>> {
+    read_file("/proc/meminfo").and_then(|data| {
+        proc_meminfo(data.as_bytes()).to_result().map_err(|err| {
+            io::Error::new(io::ErrorKind::InvalidData, err)
+        })
+    })
+}
+
 pub struct PlatformImpl;
 
 /// An implementation of `Platform` for Linux.
@@ -132,34 +174,54 @@ impl Platform for PlatformImpl {
     }
 
     fn memory(&self) -> io::Result<Memory> {
-        let mut meminfo = BTreeMap::new();
-        if let Ok(meminfo_str) = read_file("/proc/meminfo") {
-            for line in meminfo_str.lines() {
-                if let Some(colon_idx) = line.find(':') {
-                    let (name, val) = line.split_at(colon_idx);
-                    if let Ok(size) = val.trim().trim_left_matches(':').trim().trim_right_matches(char::is_alphabetic).trim().parse::<usize>() {
-                        meminfo.insert(name.to_owned(), ByteSize::kib(size));
-                    }
+        memory_stats()
+            .or_else(|_| {
+                // If there's no procfs, e.g. in a chroot without mounting it or something
+                let mut meminfo = BTreeMap::new();
+                let mut info: sysinfo = unsafe { mem::zeroed() };
+                unsafe { sysinfo(&mut info) };
+                let unit = info.mem_unit as usize;
+                meminfo.insert(
+                    "MemTotal".to_owned(),
+                    ByteSize::b(info.totalram as usize * unit),
+                );
+                meminfo.insert(
+                    "MemFree".to_owned(),
+                    ByteSize::b(info.freeram as usize * unit),
+                );
+                meminfo.insert(
+                    "Shmem".to_owned(),
+                    ByteSize::b(info.sharedram as usize * unit),
+                );
+                meminfo.insert(
+                    "Buffers".to_owned(),
+                    ByteSize::b(info.bufferram as usize * unit),
+                );
+                Ok(meminfo)
+            })
+            .map(|meminfo| {
+                Memory {
+                    total: meminfo.get("MemTotal").map(|x| x.clone()).unwrap_or(
+                        ByteSize::b(0),
+                    ),
+                    free: meminfo.get("MemFree").map(|x| x.clone()).unwrap_or(
+                        ByteSize::b(0),
+                    ) +
+                        meminfo.get("Buffers").map(|x| x.clone()).unwrap_or(
+                            ByteSize::b(0),
+                        ) +
+                        meminfo.get("Cached").map(|x| x.clone()).unwrap_or(
+                            ByteSize::b(0),
+                        ) +
+                        meminfo.get("SReclaimable").map(|x| x.clone()).unwrap_or(
+                            ByteSize::b(0),
+                        ) -
+                        meminfo.get("Shmem").map(|x| x.clone()).unwrap_or(
+                            ByteSize::b(0),
+                        ),
+                    platform_memory: PlatformMemory { meminfo: meminfo },
                 }
-            }
-        } else { // If there's no procfs, e.g. in a chroot without mounting it or something
-            let mut info: sysinfo = unsafe { mem::zeroed() };
-            unsafe { sysinfo(&mut info) };
-            let unit = info.mem_unit as usize;
-            meminfo.insert("MemTotal".to_owned(), ByteSize::b(info.totalram as usize * unit));
-            meminfo.insert("MemFree".to_owned(), ByteSize::b(info.freeram as usize * unit));
-            meminfo.insert("Shmem".to_owned(), ByteSize::b(info.sharedram as usize * unit));
-            meminfo.insert("Buffers".to_owned(), ByteSize::b(info.bufferram as usize * unit));
-        };
-        Ok(Memory {
-            total: meminfo.get("MemTotal").map(|x| x.clone()).unwrap_or(ByteSize::b(0)),
-            free: meminfo.get("MemFree").map(|x| x.clone()).unwrap_or(ByteSize::b(0))
-                + meminfo.get("Buffers").map(|x| x.clone()).unwrap_or(ByteSize::b(0))
-                + meminfo.get("Cached").map(|x| x.clone()).unwrap_or(ByteSize::b(0))
-                + meminfo.get("SReclaimable").map(|x| x.clone()).unwrap_or(ByteSize::b(0))
-                - meminfo.get("Shmem").map(|x| x.clone()).unwrap_or(ByteSize::b(0)),
-            platform_memory: PlatformMemory { meminfo: meminfo },
-        })
+            })
     }
 
     fn uptime(&self) -> io::Result<Duration> {
