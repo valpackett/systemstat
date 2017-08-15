@@ -3,6 +3,8 @@
 
 #[cfg(not(windows))]
 extern crate libc;
+#[cfg(unix)]
+extern crate nix;
 #[cfg(windows)]
 extern crate winapi;
 #[cfg(windows)]
