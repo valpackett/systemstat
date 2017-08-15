@@ -5,8 +5,10 @@ use libc::{c_ulong, c_ushort, c_uint, c_long, c_schar};
 use data::*;
 use super::common::*;
 use super::unix;
-use nom::{digit, not_line_ending, space};
+use nom::{digit, not_line_ending, space, is_space};
 use std::str;
+use nix::sys::statvfs::vfs::Statvfs;
+use std::path::Path;
 
 fn read_file(path: &str) -> io::Result<String> {
     let mut s = String::new();
@@ -145,6 +147,40 @@ fn memory_stats() -> io::Result<BTreeMap<String, ByteSize>> {
     })
 }
 
+/// Parse a single word
+named!(word_s<String>, flat_map!(
+    map_res!(take_till!(is_space), str::from_utf8),
+    parse_to!(String)
+));
+
+/// `/proc/mounts` data
+struct ProcMountsData {
+    source: String,
+    target: String,
+    fstype: String,
+}
+
+/// Parse a `/proc/mounts` line to get a mountpoint
+named!(
+    proc_mounts_line<ProcMountsData>,
+    ws!(do_parse!(
+        source: word_s >>
+        target: word_s >>
+        fstype: word_s >>
+        (ProcMountsData {
+            source: source,
+            target: target,
+            fstype: fstype,
+        })
+    ))
+);
+
+/// Parse `/proc/mounts` to get a list of mountpoints
+named!(
+    proc_mounts<Vec<ProcMountsData>>,
+    many1!(ws!(flat_map!(not_line_ending, proc_mounts_line)))
+);
+
 pub struct PlatformImpl;
 
 /// An implementation of `Platform` for Linux.
@@ -271,11 +307,42 @@ impl Platform for PlatformImpl {
     }
 
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        read_file("/proc/mounts")
+            .and_then(|data| {
+                proc_mounts(data.as_bytes()).to_result().map_err(|err| {
+                    io::Error::new(io::ErrorKind::InvalidData, err)
+                })
+            })
+            .map(|mounts| {
+                mounts
+                    .into_iter()
+                    .filter_map(|mount| {
+                        Statvfs::for_path(&mount.target as &str)
+                            .map(move |s| {
+                                Filesystem {
+                                    files: s.f_files as usize,
+                                    free: ByteSize::b(s.f_bfree as usize * s.f_bsize as usize),
+                                    avail: ByteSize::b(s.f_bavail as usize * s.f_bsize as usize),
+                                    total: ByteSize::b(s.f_blocks as usize * s.f_bsize as usize),
+                                    name_max: s.f_namemax as usize,
+                                    fs_type: mount.fstype,
+                                    fs_mounted_from: mount.source,
+                                    fs_mounted_on: mount.target,
+                                }
+                            })
+                            .ok()
+                    })
+                    .collect()
+            })
     }
 
     fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        self.mounts().and_then(|mounts| {
+            mounts
+                .into_iter()
+                .find(|mount| Path::new(&mount.fs_mounted_on) == path.as_ref())
+                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No such mount"))
+        })
     }
 
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
