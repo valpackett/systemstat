@@ -14,7 +14,7 @@ use std::ops::Sub;
 ///
 /// Time should pass between getting the object and calling .done() on it.
 pub struct DelayedMeasurement<T> {
-    res: Box<Fn() -> io::Result<T>>
+    res: Box<Fn() -> io::Result<T>>,
 }
 
 impl<T> DelayedMeasurement<T> {
@@ -67,12 +67,12 @@ impl<'a> Sub<&'a CpuTime> for CpuTime {
     #[inline(always)]
     fn sub(self, rhs: &CpuTime) -> CpuTime {
         CpuTime {
-            user: self.user - rhs.user,
-            nice: self.nice - rhs.nice,
-            system: self.system - rhs.system,
-            interrupt: self.interrupt - rhs.interrupt,
-            idle: self.idle - rhs.idle,
-            other: self.other - rhs.other,
+            user: self.user.saturating_sub(rhs.user),
+            nice: self.nice.saturating_sub(rhs.nice),
+            system: self.system.saturating_sub(rhs.system),
+            interrupt: self.interrupt.saturating_sub(rhs.interrupt),
+            idle: self.idle.saturating_sub(rhs.idle),
+            other: self.other.saturating_sub(rhs.other),
         }
     }
 }
