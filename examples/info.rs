@@ -43,7 +43,7 @@ fn main() {
     }
 
     match sys.memory() {
-        Ok(mem) => println!("\nMemory: {} used / {} ({} bytes) total ({:?})", mem.total - mem.free, mem.total, mem.total.as_usize(), mem.platform_memory),
+        Ok(mem) => println!("\nMemory: {} used / {} ({} bytes) total ({:?})", mem.total - mem.free, mem.total, mem.total.as_u64(), mem.platform_memory),
         Err(x) => println!("\nMemory: error: {}", x)
     }
 

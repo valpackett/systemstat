@@ -60,14 +60,14 @@ impl Platform for PlatformImpl {
     fn memory(&self) -> io::Result<Memory> {
         let mut uvm_info = uvmexp::default(); sysctl!(VM_UVMEXP, &mut uvm_info, mem::size_of::<uvmexp>());
         let mut bcache_info = bcachestats::default(); sysctl!(VFS_BCACHESTAT, &mut bcache_info, mem::size_of::<bcachestats>());
-        let total = ByteSize::kib((uvm_info.npages << *bsd::PAGESHIFT) as usize);
+        let total = ByteSize::kib((uvm_info.npages << *bsd::PAGESHIFT) as u64);
         let pmem = PlatformMemory {
-            active: ByteSize::kib((uvm_info.active << *bsd::PAGESHIFT) as usize),
-            inactive: ByteSize::kib((uvm_info.inactive << *bsd::PAGESHIFT) as usize),
-            wired: ByteSize::kib((uvm_info.wired << *bsd::PAGESHIFT) as usize),
-            cache: ByteSize::kib((bcache_info.numbufpages << *bsd::PAGESHIFT) as usize),
-            free: ByteSize::kib((uvm_info.free << *bsd::PAGESHIFT) as usize),
-            paging: ByteSize::kib((uvm_info.paging << *bsd::PAGESHIFT) as usize),
+            active: ByteSize::kib((uvm_info.active << *bsd::PAGESHIFT) as u64),
+            inactive: ByteSize::kib((uvm_info.inactive << *bsd::PAGESHIFT) as u64),
+            wired: ByteSize::kib((uvm_info.wired << *bsd::PAGESHIFT) as u64),
+            cache: ByteSize::kib((bcache_info.numbufpages << *bsd::PAGESHIFT) as u64),
+            free: ByteSize::kib((uvm_info.free << *bsd::PAGESHIFT) as u64),
+            paging: ByteSize::kib((uvm_info.paging << *bsd::PAGESHIFT) as u64),
         };
         Ok(Memory {
             total: total,

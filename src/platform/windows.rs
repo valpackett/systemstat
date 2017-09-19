@@ -38,13 +38,13 @@ impl Platform for PlatformImpl {
         unsafe { kernel32::GlobalMemoryStatusEx(&mut status); }
         let pm = PlatformMemory {
             load: status.dwMemoryLoad,
-            total_phys: ByteSize::b(status.ullTotalPhys as usize),
-            avail_phys: ByteSize::b(status.ullAvailPhys as usize),
-            total_pagefile: ByteSize::b(status.ullTotalPageFile as usize),
-            avail_pagefile: ByteSize::b(status.ullAvailPageFile as usize),
-            total_virt: ByteSize::b(status.ullTotalVirtual as usize),
-            avail_virt: ByteSize::b(status.ullAvailVirtual as usize),
-            avail_ext: ByteSize::b(status.ullAvailExtendedVirtual as usize),
+            total_phys: ByteSize::b(status.ullTotalPhys as u64),
+            avail_phys: ByteSize::b(status.ullAvailPhys as u64),
+            total_pagefile: ByteSize::b(status.ullTotalPageFile as u64),
+            avail_pagefile: ByteSize::b(status.ullAvailPageFile as u64),
+            total_virt: ByteSize::b(status.ullTotalVirtual as u64),
+            avail_virt: ByteSize::b(status.ullAvailVirtual as u64),
+            avail_ext: ByteSize::b(status.ullAvailExtendedVirtual as u64),
         };
         Ok(Memory {
             total: pm.total_phys,

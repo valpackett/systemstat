@@ -197,9 +197,9 @@ impl statfs {
     fn to_fs(&self) -> Filesystem {
         Filesystem {
             files: self.f_files as usize - self.f_ffree as usize,
-            free: ByteSize::b(self.f_bfree as usize * self.f_bsize as usize),
-            avail: ByteSize::b(self.f_bavail as usize * self.f_bsize as usize),
-            total: ByteSize::b(self.f_blocks as usize * self.f_bsize as usize),
+            free: ByteSize::b(self.f_bfree * self.f_bsize),
+            avail: ByteSize::b(self.f_bavail as u64 * self.f_bsize),
+            total: ByteSize::b(self.f_blocks * self.f_bsize),
             name_max: self.f_namemax as usize,
             fs_type: unsafe { ffi::CStr::from_ptr(&self.f_fstypename[0]).to_string_lossy().into_owned() },
             fs_mounted_from: unsafe { ffi::CStr::from_ptr(&self.f_mntfromname[0]).to_string_lossy().into_owned() },

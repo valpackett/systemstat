@@ -64,7 +64,7 @@ mod tests {
     #[test]
     fn test_memory() {
         let mem = PlatformImpl::new().memory().unwrap();
-        assert!(mem.free.as_usize() > 1024 && mem.total.as_usize() > 1024);
+        assert!(mem.free.as_u64() > 1024 && mem.total.as_u64() > 1024);
     }
 
     #[test]

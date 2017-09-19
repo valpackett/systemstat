@@ -113,7 +113,7 @@ named!(
         tag!(":") >>
         value: usize_s >>
         ws!(tag!("kB")) >>
-        ((key, ByteSize::kib(value)))
+        ((key, ByteSize::kib(value as u64)))
     ))
 );
 
@@ -188,9 +188,9 @@ fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
     match result {
         0 => Ok(Filesystem {
             files: info.f_files as usize,
-            free: ByteSize::b(info.f_bfree as usize * info.f_bsize as usize),
-            avail: ByteSize::b(info.f_bavail as usize * info.f_bsize as usize),
-            total: ByteSize::b(info.f_blocks as usize * info.f_bsize as usize),
+            free: ByteSize::b(info.f_bfree as u64 * info.f_bsize as u64),
+            avail: ByteSize::b(info.f_bavail as u64 * info.f_bsize as u64),
+            total: ByteSize::b(info.f_blocks as u64 * info.f_bsize as u64),
             name_max: info.f_namemax as usize,
             fs_type: mount.fstype,
             fs_mounted_from: mount.source,
@@ -235,22 +235,22 @@ impl Platform for PlatformImpl {
                 let mut meminfo = BTreeMap::new();
                 let mut info: sysinfo = unsafe { mem::zeroed() };
                 unsafe { sysinfo(&mut info) };
-                let unit = info.mem_unit as usize;
+                let unit = info.mem_unit as u64;
                 meminfo.insert(
                     "MemTotal".to_owned(),
-                    ByteSize::b(info.totalram as usize * unit),
+                    ByteSize::b(info.totalram as u64 * unit),
                 );
                 meminfo.insert(
                     "MemFree".to_owned(),
-                    ByteSize::b(info.freeram as usize * unit),
+                    ByteSize::b(info.freeram as u64 * unit),
                 );
                 meminfo.insert(
                     "Shmem".to_owned(),
-                    ByteSize::b(info.sharedram as usize * unit),
+                    ByteSize::b(info.sharedram as u64 * unit),
                 );
                 meminfo.insert(
                     "Buffers".to_owned(),
-                    ByteSize::b(info.bufferram as usize * unit),
+                    ByteSize::b(info.bufferram as u64 * unit),
                 );
                 Ok(meminfo)
             })
