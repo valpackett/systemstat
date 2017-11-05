@@ -1,4 +1,8 @@
-# systemstat [![unlicense](https://img.shields.io/badge/un-license-green.svg?style=flat)](http://unlicense.org)
+[![crates.io](https://img.shields.io/crates/v/systemstat.svg)](https://crates.io/crates/systemstat)
+[![API Docs](https://docs.rs/systemstat/badge.svg)](https://docs.rs/systemstat/)
+[![unlicense](https://img.shields.io/badge/un-license-green.svg?style=flat)](http://unlicense.org)
+
+# systemstat
 
 A Rust library for getting system information/statistics:
 
