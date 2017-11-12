@@ -121,6 +121,10 @@ impl Platform for PlatformImpl {
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
         unix::networks()
     }
+
+    fn cpu_temp(&self) -> io::Result<f32> {
+        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    }
 }
 
 fn measure_cpu() -> io::Result<Vec<CpuTime>> {

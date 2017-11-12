@@ -66,4 +66,9 @@ pub trait Platform {
     /// interface, and we're doing deduplication and packing everything into one object per
     /// interface. You can use the .values() iterator if you need to iterate over all of them.
     fn networks(&self) -> io::Result<BTreeMap<String, Network>>;
+
+    /// Returns the current CPU temperature in degrees Celsius.
+    ///
+    /// Depending on the platform, this might be core 0, package, etc.
+    fn cpu_temp(&self) -> io::Result<f32>;
 }

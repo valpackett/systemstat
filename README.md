@@ -13,6 +13,7 @@ A Rust library for getting system information/statistics:
 - battery life
 - filesystem mounts (and disk usage)
 - network interfaces
+- CPU temperature
 
 Unlike [sys-info-rs](https://github.com/FillZpp/sys-info-rs), this one is written purely in Rust.
 

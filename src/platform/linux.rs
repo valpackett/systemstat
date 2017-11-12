@@ -359,6 +359,12 @@ impl Platform for PlatformImpl {
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
         unix::networks()
     }
+
+    fn cpu_temp(&self) -> io::Result<f32> {
+        read_file("/sys/class/thermal/thermal_zone0/temp")
+            .and_then(|data| data.parse::<f32>())
+            .map(|num| num / 1000.0)
+    }
 }
 
 #[repr(C)]
