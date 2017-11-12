@@ -50,6 +50,7 @@ lazy_static! {
     static ref BATTERY_LIFE: [c_int; 4] = sysctl_mib!(4, "hw.acpi.battery.life");
     static ref BATTERY_TIME: [c_int; 4] = sysctl_mib!(4, "hw.acpi.battery.time");
     static ref ACLINE: [c_int; 3] = sysctl_mib!(3, "hw.acpi.acline");
+    static ref CPU0TEMP: [c_int; 4] = sysctl_mib!(4, "dev.cpu.0.temperature");
 
     static ref CP_TIMES_SIZE: usize = {
         let mut size: usize = 0;
@@ -142,6 +143,13 @@ impl Platform for PlatformImpl {
 
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
         unix::networks()
+    }
+
+    fn cpu_temp(&self) -> io::Result<f32> {
+        let mut temp: i32 = 0; sysctl!(CPU0TEMP, &mut temp, mem::size_of::<i32>());
+        // The sysctl interface supports more units, but both amdtemp and coretemp always
+        // use IK (deciKelvin)
+        Ok((temp as f32 - 2731.5) / 10.0)
     }
 }
 
