@@ -16,6 +16,10 @@ extern crate lazy_static;
 #[macro_use]
 extern crate nom;
 
+#[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos",
+            target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))]
+extern crate uptime_lib;
+
 pub mod platform;
 pub mod data;
 

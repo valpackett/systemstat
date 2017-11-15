@@ -35,7 +35,9 @@ impl Platform for PlatformImpl {
             ullAvailVirtual: 0,
             ullAvailExtendedVirtual: 0,
         };
-        unsafe { kernel32::GlobalMemoryStatusEx(&mut status); }
+        unsafe {
+            kernel32::GlobalMemoryStatusEx(&mut status);
+        }
         let pm = PlatformMemory {
             load: status.dwMemoryLoad,
             total_phys: ByteSize::b(status.ullTotalPhys as usize),
@@ -53,17 +55,16 @@ impl Platform for PlatformImpl {
         })
     }
 
-    fn uptime(&self) -> io::Result<Duration> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
-    }
-
     fn battery_life(&self) -> io::Result<BatteryLife> {
         let status = power_status();
         if status.BatteryFlag == 128 {
-            return Err(io::Error::new(io::ErrorKind::Other, "Battery absent"))
+            return Err(io::Error::new(io::ErrorKind::Other, "Battery absent"));
         }
         if status.BatteryFlag == 255 {
-            return Err(io::Error::new(io::ErrorKind::Other, "Battery status unknown"))
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "Battery status unknown",
+            ));
         }
         Ok(BatteryLife {
             remaining_capacity: status.BatteryLifePercent as f32 / 100.0,
@@ -101,6 +102,8 @@ fn power_status() -> winbase::SYSTEM_POWER_STATUS {
         BatteryLifeTime: 0,
         BatteryFullLifeTime: 0,
     };
-    unsafe { kernel32::GetSystemPowerStatus(&mut status); }
+    unsafe {
+        kernel32::GetSystemPowerStatus(&mut status);
+    }
     status
 }
