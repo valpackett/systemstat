@@ -1,6 +1,7 @@
 use std::{io, path};
 use time;
 use data::*;
+use uptime_lib;
 
 /// The Platform trait declares all the functions for getting system information.
 pub trait Platform {
@@ -35,11 +36,12 @@ pub trait Platform {
 
     /// Returns the system uptime.
     fn uptime(&self) -> io::Result<Duration> {
-        self.boot_time().and_then(|bt| {
-            time::Duration::to_std(&Utc::now().signed_duration_since(bt)).map_err(|e| {
-                io::Error::new(io::ErrorKind::Other, "Could not process time")
-            })
-        })
+        match uptime_lib::get() {
+            Ok(uptime) => Ok(uptime.to_std().expect(
+                "Unexpected impossible time less than zero",
+            )),
+            Err(err) => Err(io::Error::new(io::ErrorKind::Other, err)),
+        }
     }
 
     /// Returns the system boot time.

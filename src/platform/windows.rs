@@ -55,10 +55,6 @@ impl Platform for PlatformImpl {
         })
     }
 
-    fn uptime(&self) -> io::Result<Duration> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
-    }
-
     fn battery_life(&self) -> io::Result<BatteryLife> {
         let status = power_status();
         if status.BatteryFlag == 128 {
