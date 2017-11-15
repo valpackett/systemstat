@@ -23,8 +23,10 @@ fn value_from_file(path: &str) -> io::Result<i32> {
         .parse()
         .and_then(|n| Ok(n))
         .or_else(|_| {
-            Err(io::Error::new(io::ErrorKind::Other,
-                               format!("File: \"{}\" doesn't contain an int value", &path)))
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("File: \"{}\" doesn't contain an int value", &path),
+            ))
         })
 }
 
@@ -36,9 +38,10 @@ fn time(on_ac: bool, charge_full: i32, charge_now: i32, current_now: i32) -> Dur
     if current_now != 0 {
         if on_ac {
             // Charge time
-            Duration::from_secs((charge_full - charge_now).abs() as u64 * 3600u64 / current_now as u64)
-        }
-        else {
+            Duration::from_secs(
+                (charge_full - charge_now).abs() as u64 * 3600u64 / current_now as u64,
+            )
+        } else {
             // Discharge time
             Duration::from_secs(charge_now as u64 * 3600u64 / current_now as u64)
         }
@@ -307,17 +310,19 @@ impl Platform for PlatformImpl {
             }
         }
         if full != 0 {
-            let on_ac =
-                match self.on_ac_power() {
-                    Ok(true) => true,
-                    _ => false,
-                };
+            let on_ac = match self.on_ac_power() {
+                Ok(true) => true,
+                _ => false,
+            };
             Ok(BatteryLife {
                 remaining_capacity: capacity(full, now),
                 remaining_time: time(on_ac, full, now, current),
             })
         } else {
-            Err(io::Error::new(io::ErrorKind::Other, "Missing battery information"))
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                "Missing battery information",
+            ))
         }
     }
 
@@ -364,7 +369,10 @@ impl Platform for PlatformImpl {
         read_file("/sys/class/thermal/thermal_zone0/temp")
             .and_then(|data| match data.parse::<f32>() {
                 Ok(x) => Ok(x),
-                Err(_) => Err(io::Error::new(io::ErrorKind::Other, "Could not parse float")),
+                Err(_) => Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "Could not parse float",
+                )),
             })
             .map(|num| num / 1000.0)
     }

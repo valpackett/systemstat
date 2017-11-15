@@ -83,7 +83,13 @@ mod tests {
     fn test_mounts() {
         let mounts = PlatformImpl::new().mounts().unwrap();
         assert!(mounts.len() > 0);
-        assert!(mounts.iter().find(|m| m.fs_mounted_on == "/").unwrap().fs_mounted_on == "/");
+        assert!(
+            mounts
+                .iter()
+                .find(|m| m.fs_mounted_on == "/")
+                .unwrap()
+                .fs_mounted_on == "/"
+        );
     }
 
     #[test]
@@ -95,7 +101,14 @@ mod tests {
     #[test]
     fn test_networks() {
         let networks = PlatformImpl::new().networks().unwrap();
-        assert!(networks.values().find(|n| n.name == "lo0").unwrap().addrs.len() > 0);
+        assert!(
+            networks
+                .values()
+                .find(|n| n.name == "lo0")
+                .unwrap()
+                .addrs
+                .len() > 0
+        );
     }
 
 }

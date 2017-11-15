@@ -70,11 +70,15 @@ impl Platform for PlatformImpl {
 
     fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>> {
         let loads = try!(measure_cpu());
-        Ok(DelayedMeasurement::new(
-                Box::new(move || Ok(loads.iter()
-                               .zip(try!(measure_cpu()).iter())
-                               .map(|(prev, now)| (*now - prev).to_cpuload())
-                               .collect::<Vec<_>>()))))
+        Ok(DelayedMeasurement::new(Box::new(move || {
+            Ok(
+                loads
+                    .iter()
+                    .zip(try!(measure_cpu()).iter())
+                    .map(|(prev, now)| (*now - prev).to_cpuload())
+                    .collect::<Vec<_>>(),
+            )
+        })))
     }
 
     fn load_average(&self) -> io::Result<LoadAverage> {
@@ -82,11 +86,16 @@ impl Platform for PlatformImpl {
     }
 
     fn memory(&self) -> io::Result<Memory> {
-        let mut active: usize = 0; sysctl!(V_ACTIVE_COUNT, &mut active, mem::size_of::<usize>());
-        let mut inactive: usize = 0; sysctl!(V_INACTIVE_COUNT, &mut inactive, mem::size_of::<usize>());
-        let mut wired: usize = 0; sysctl!(V_WIRE_COUNT, &mut wired, mem::size_of::<usize>());
-        let mut cache: usize = 0; sysctl!(V_CACHE_COUNT, &mut cache, mem::size_of::<usize>(), false);
-        let mut free: usize = 0; sysctl!(V_FREE_COUNT, &mut free, mem::size_of::<usize>());
+        let mut active: usize = 0;
+        sysctl!(V_ACTIVE_COUNT, &mut active, mem::size_of::<usize>());
+        let mut inactive: usize = 0;
+        sysctl!(V_INACTIVE_COUNT, &mut inactive, mem::size_of::<usize>());
+        let mut wired: usize = 0;
+        sysctl!(V_WIRE_COUNT, &mut wired, mem::size_of::<usize>());
+        let mut cache: usize = 0;
+        sysctl!(V_CACHE_COUNT, &mut cache, mem::size_of::<usize>(), false);
+        let mut free: usize = 0;
+        sysctl!(V_FREE_COUNT, &mut free, mem::size_of::<usize>());
         let arc = ByteSize::b(zfs_arc_size().unwrap_or(0));
         let pmem = PlatformMemory {
             active: ByteSize::kib(active << *bsd::PAGESHIFT),
@@ -106,12 +115,20 @@ impl Platform for PlatformImpl {
     fn boot_time(&self) -> io::Result<DateTime<Utc>> {
         let mut data: timeval = unsafe { mem::zeroed() };
         sysctl!(KERN_BOOTTIME, &mut data, mem::size_of::<timeval>());
-        Ok(DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(data.tv_sec, data.tv_usec as u32), Utc))
+        Ok(DateTime::<Utc>::from_utc(
+            NaiveDateTime::from_timestamp(
+                data.tv_sec,
+                data.tv_usec as u32,
+            ),
+            Utc,
+        ))
     }
 
     fn battery_life(&self) -> io::Result<BatteryLife> {
-        let mut life: usize = 0; sysctl!(BATTERY_LIFE, &mut life, mem::size_of::<usize>());
-        let mut time: i32 = 0; sysctl!(BATTERY_TIME, &mut time, mem::size_of::<i32>());
+        let mut life: usize = 0;
+        sysctl!(BATTERY_LIFE, &mut life, mem::size_of::<usize>());
+        let mut time: i32 = 0;
+        sysctl!(BATTERY_TIME, &mut time, mem::size_of::<i32>());
         Ok(BatteryLife {
             remaining_capacity: life as f32 / 100.0,
             remaining_time: time::Duration::from_secs(if time < 0 { 0 } else { time as u64 }),
@@ -119,7 +136,8 @@ impl Platform for PlatformImpl {
     }
 
     fn on_ac_power(&self) -> io::Result<bool> {
-        let mut on: usize = 0; sysctl!(ACLINE, &mut on, mem::size_of::<usize>());
+        let mut on: usize = 0;
+        sysctl!(ACLINE, &mut on, mem::size_of::<usize>());
         Ok(on == 1)
     }
 
@@ -127,7 +145,7 @@ impl Platform for PlatformImpl {
         let mut mptr: *mut statfs = ptr::null_mut();
         let len = unsafe { getmntinfo(&mut mptr, 1 as i32) };
         if len < 1 {
-            return Err(io::Error::new(io::ErrorKind::Other, "getmntinfo() failed"))
+            return Err(io::Error::new(io::ErrorKind::Other, "getmntinfo() failed"));
         }
         let mounts = unsafe { slice::from_raw_parts(mptr, len as usize) };
         Ok(mounts.iter().map(|m| m.to_fs()).collect::<Vec<_>>())
@@ -136,7 +154,7 @@ impl Platform for PlatformImpl {
     fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem> {
         let mut sfs: statfs = unsafe { mem::zeroed() };
         if unsafe { statfs(path.as_ref().to_string_lossy().as_ptr(), &mut sfs) } != 0 {
-            return Err(io::Error::new(io::ErrorKind::Other, "statfs() failed"))
+            return Err(io::Error::new(io::ErrorKind::Other, "statfs() failed"));
         }
         Ok(sfs.to_fs())
     }
@@ -146,7 +164,8 @@ impl Platform for PlatformImpl {
     }
 
     fn cpu_temp(&self) -> io::Result<f32> {
-        let mut temp: i32 = 0; sysctl!(CPU0TEMP, &mut temp, mem::size_of::<i32>());
+        let mut temp: i32 = 0;
+        sysctl!(CPU0TEMP, &mut temp, mem::size_of::<i32>());
         // The sysctl interface supports more units, but both amdtemp and coretemp always
         // use IK (deciKelvin)
         Ok((temp as f32 - 2731.5) / 10.0)
@@ -209,9 +228,21 @@ impl statfs {
             avail: ByteSize::b(self.f_bavail as usize * self.f_bsize as usize),
             total: ByteSize::b(self.f_blocks as usize * self.f_bsize as usize),
             name_max: self.f_namemax as usize,
-            fs_type: unsafe { ffi::CStr::from_ptr(&self.f_fstypename[0]).to_string_lossy().into_owned() },
-            fs_mounted_from: unsafe { ffi::CStr::from_ptr(&self.f_mntfromname[0]).to_string_lossy().into_owned() },
-            fs_mounted_on: unsafe { ffi::CStr::from_ptr(&self.f_mntonname[0]).to_string_lossy().into_owned() },
+            fs_type: unsafe {
+                ffi::CStr::from_ptr(&self.f_fstypename[0])
+                    .to_string_lossy()
+                    .into_owned()
+            },
+            fs_mounted_from: unsafe {
+                ffi::CStr::from_ptr(&self.f_mntfromname[0])
+                    .to_string_lossy()
+                    .into_owned()
+            },
+            fs_mounted_on: unsafe {
+                ffi::CStr::from_ptr(&self.f_mntonname[0])
+                    .to_string_lossy()
+                    .into_owned()
+            },
         }
     }
 }

@@ -18,12 +18,13 @@ pub trait Platform {
     /// `DelayedMeasurement` with `.done()`.
     fn cpu_load_aggregate(&self) -> io::Result<DelayedMeasurement<CPULoad>> {
         let measurement = try!(self.cpu_load());
-        Ok(DelayedMeasurement::new(
-                Box::new(move || measurement.done().map(|ls| {
+        Ok(DelayedMeasurement::new(Box::new(move || {
+            measurement.done().map(|ls| {
                     let mut it = ls.iter();
                     let first = it.next().unwrap().clone(); // has to be a variable, rust moves the iterator otherwise
                     it.fold(first, |acc, l| acc.avg_add(l))
-                }))))
+                })
+        })))
     }
 
     /// Returns a load average object.
@@ -35,16 +36,21 @@ pub trait Platform {
     /// Returns the system uptime.
     fn uptime(&self) -> io::Result<Duration> {
         self.boot_time().and_then(|bt| {
-            time::Duration::to_std(&Utc::now().signed_duration_since(bt))
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, "Could not process time"))
+            time::Duration::to_std(&Utc::now().signed_duration_since(bt)).map_err(|e| {
+                io::Error::new(io::ErrorKind::Other, "Could not process time")
+            })
         })
     }
 
     /// Returns the system boot time.
     fn boot_time(&self) -> io::Result<DateTime<Utc>> {
         self.uptime().and_then(|ut| {
-            Ok(Utc::now() - try!(time::Duration::from_std(ut)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, "Could not process time"))))
+            Ok(
+                Utc::now() -
+                    try!(time::Duration::from_std(ut).map_err(|e| {
+                        io::Error::new(io::ErrorKind::Other, "Could not process time")
+                    })),
+            )
         })
     }
 
