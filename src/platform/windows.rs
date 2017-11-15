@@ -4,6 +4,7 @@ use kernel32;
 use std::{io, path, mem};
 use data::*;
 use super::common::*;
+use kernel32::GetTickCount64;
 
 pub struct PlatformImpl;
 
@@ -54,7 +55,8 @@ impl Platform for PlatformImpl {
     }
 
     fn uptime(&self) -> io::Result<Duration> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        let since_boot: u64 = unsafe { GetTickCount64() };
+        Ok(Duration::from_millis(since_boot))
     }
 
     fn battery_life(&self) -> io::Result<BatteryLife> {
