@@ -192,3 +192,13 @@ pub struct Network {
     pub name: String,
     pub addrs: Vec<NetworkAddrs>,
 }
+
+#[derive(Debug, Clone)]
+pub struct NetworkStats {
+    pub rx_bytes: u64,
+    pub tx_bytes: u64,
+    pub rx_packets: u64,
+    pub tx_packets: u64,
+    pub rx_errors: u64,
+    pub tx_errors: u64,
+}
