@@ -158,6 +158,10 @@ fn measure_cpu() -> io::Result<Vec<CpuTime>> {
     let cpus = *CP_TIMES_SIZE / mem::size_of::<bsd::sysctl_cpu>();
     let mut data: Vec<bsd::sysctl_cpu> = Vec::with_capacity(cpus);
     unsafe { data.set_len(cpus) };
+    fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
+        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    }
+
     sysctl!(KERN_CP_TIMES, &mut data[0], *CP_TIMES_SIZE);
     Ok(data.into_iter().map(|cpu| cpu.into()).collect())
 }

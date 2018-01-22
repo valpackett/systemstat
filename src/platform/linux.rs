@@ -17,7 +17,7 @@ fn read_file(path: &str) -> io::Result<String> {
         .map(|_| s)
 }
 
-fn value_from_file(path: &str) -> io::Result<i32> {
+fn value_from_file<T: str::FromStr>(path: &str) -> io::Result<T> {
     try!(read_file(path))
         .trim_right_matches("\n")
         .parse()
@@ -297,12 +297,18 @@ impl Platform for PlatformImpl {
             let f = p.file_name().unwrap().to_str().unwrap();
             if f.len() > 3 {
                 if f.split_at(3).0 == "BAT" {
-                    full += try!(value_from_file(&(s.to_string() + "/energy_full"))
-                                 .or_else(|_| value_from_file(&(s.to_string() + "/charge_full"))));
-                    now += try!(value_from_file(&(s.to_string() + "/energy_now"))
-                                .or_else(|_| value_from_file(&(s.to_string() + "/charge_now"))));
-                    current += try!(value_from_file(&(s.to_string() + "/power_now"))
-                                    .or_else(|_| value_from_file(&(s.to_string() + "/current_now"))));
+                    full += try!(
+                        value_from_file::<i32>(&(s.to_string() + "/energy_full"))
+                            .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_full")))
+                    );
+                    now += try!(
+                        value_from_file::<i32>(&(s.to_string() + "/energy_now"))
+                            .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_now")))
+                    );
+                    current += try!(
+                        value_from_file::<i32>(&(s.to_string() + "/power_now"))
+                            .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/current_now")))
+                    );
                 }
             }
         }
@@ -322,7 +328,7 @@ impl Platform for PlatformImpl {
     }
 
     fn on_ac_power(&self) -> io::Result<bool> {
-        value_from_file("/sys/class/power_supply/AC/online").map(|v| v == 1)
+        value_from_file::<i32>("/sys/class/power_supply/AC/online").map(|v| v == 1)
     }
 
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
@@ -358,6 +364,27 @@ impl Platform for PlatformImpl {
 
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
         unix::networks()
+    }
+
+    fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
+        let path_root: String = ("/sys/class/net/".to_string() + interface) + "/statistics/";
+        let stats_file = |file: &str| (&path_root).to_string() + file;
+
+        let rx_bytes: u64 = try!(value_from_file::<u64>(&stats_file("rx_bytes")));
+        let tx_bytes: u64 = try!(value_from_file::<u64>(&stats_file("tx_bytes")));
+        let rx_packets: u64 = try!(value_from_file::<u64>(&stats_file("rx_packets")));
+        let tx_packets: u64 = try!(value_from_file::<u64>(&stats_file("tx_packets")));
+        let rx_errors: u64 = try!(value_from_file::<u64>(&stats_file("rx_errors")));
+        let tx_errors: u64 = try!(value_from_file::<u64>(&stats_file("tx_errors")));
+
+        Ok(NetworkStats {
+            rx_bytes,
+            tx_bytes,
+            rx_packets,
+            tx_packets,
+            rx_errors,
+            tx_errors,
+        })
     }
 
     fn cpu_temp(&self) -> io::Result<f32> {

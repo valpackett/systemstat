@@ -94,6 +94,10 @@ impl Platform for PlatformImpl {
     }
 }
 
+    fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
+        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    }
+
 fn power_status() -> winbase::SYSTEM_POWER_STATUS {
     let mut status = winbase::SYSTEM_POWER_STATUS {
         ACLineStatus: 0,
