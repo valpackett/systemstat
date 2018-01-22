@@ -67,6 +67,9 @@ pub trait Platform {
     /// interface. You can use the .values() iterator if you need to iterate over all of them.
     fn networks(&self) -> io::Result<BTreeMap<String, Network>>;
 
+    /// Returns statistics for a given interface (bytes/packets sent/received)
+    fn network_stats(&self, interface: &str) -> io::Result<NetworkStats>;
+
     /// Returns the current CPU temperature in degrees Celsius.
     ///
     /// Depending on the platform, this might be core 0, package, etc.
