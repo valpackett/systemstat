@@ -28,6 +28,16 @@ fn main() {
         Err(x) => println!("\nNetworks: error: {}", x)
     }
 
+    match sys.networks() {
+        Ok(netifs) => {
+            println!("\nNetwork interface statistics:");
+            for netif in netifs.values() {
+                println!("{} statistics: ({:?})", netif.name, sys.network_stats(&netif.name));
+            }
+        }
+        Err(x) => println!("\nNetworks: error: {}", x)
+    }
+
     match sys.battery_life() {
         Ok(battery) =>
             print!("\nBattery: {}%, {}h{}m remaining",
