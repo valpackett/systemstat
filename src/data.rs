@@ -173,6 +173,22 @@ pub struct Filesystem {
     pub fs_mounted_on: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct BlockDeviceStats {
+    pub name: String,
+    pub read_ios: u64,
+    pub read_merges: u64,
+    pub read_sectors: u64,
+    pub read_ticks: u64,
+    pub write_ios: u64,
+    pub write_merges: u64,
+    pub write_sectors: u64,
+    pub write_ticks: u64,
+    pub in_flight: u64,
+    pub io_ticks: u64,
+    pub time_in_queue: u64
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum IpAddr {
     Empty,
@@ -191,20 +207,4 @@ pub struct NetworkAddrs {
 pub struct Network {
     pub name: String,
     pub addrs: Vec<NetworkAddrs>,
-}
-
-#[derive(Debug, Clone)]
-pub struct BlockDeviceStats {
-    pub name: String,
-    pub read_ios: u64,
-    pub read_merges: u64,
-    pub read_sectors: u64,
-    pub read_ticks: u64,
-    pub write_ios: u64,
-    pub write_merges: u64,
-    pub write_sectors: u64,
-    pub write_ticks: u64,
-    pub in_flight: u64,
-    pub io_ticks: u64,
-    pub time_in_queue: u64
 }
