@@ -176,17 +176,17 @@ pub struct Filesystem {
 #[derive(Debug, Clone)]
 pub struct BlockDeviceStats {
     pub name: String,
-    pub read_ios: u64,
-    pub read_merges: u64,
-    pub read_sectors: u64,
-    pub read_ticks: u64,
-    pub write_ios: u64,
-    pub write_merges: u64,
-    pub write_sectors: u64,
-    pub write_ticks: u64,
-    pub in_flight: u64,
-    pub io_ticks: u64,
-    pub time_in_queue: u64
+    pub read_ios: usize,
+    pub read_merges: usize,
+    pub read_sectors: usize,
+    pub read_ticks: usize,
+    pub write_ios: usize,
+    pub write_merges: usize,
+    pub write_sectors: usize,
+    pub write_ticks: usize,
+    pub in_flight: usize,
+    pub io_ticks: usize,
+    pub time_in_queue: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
