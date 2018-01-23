@@ -197,15 +197,15 @@ pub type Disk = String;
 
 #[derive(Debug, Clone)]
 pub struct BlockDeviceStats {
-    read_ios: u64,
-    read_merges: u64,
-    read_sectors: u64,
-    read_ticks: u64,
-    write_ios: u64,
-    write_merges: u64,
-    write_sectors: u64,
-    write_ticks: u64,
-    in_flight: u64,
-    io_ticks: u64,
-    time_in_queue: u64
+    pub read_ios: u64,
+    pub read_merges: u64,
+    pub read_sectors: u64,
+    pub read_ticks: u64,
+    pub write_ios: u64,
+    pub write_merges: u64,
+    pub write_sectors: u64,
+    pub write_ticks: u64,
+    pub in_flight: u64,
+    pub io_ticks: u64,
+    pub time_in_queue: u64
 }

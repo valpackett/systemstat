@@ -200,6 +200,52 @@ fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
     }
 }
 
+/// Parse a single number
+named!(num_s<u64>, flat_map!(
+    map_res!(take_till!(is_space), str::from_utf8),
+    parse_to!(u64)
+));
+
+/// Parse a line of `/proc/diskstats`
+named!(
+    proc_diskstats_line<(String, BlockDeviceStats)>,
+    ws!(do_parse!(
+        major_number: num_s >>
+            minor_number: num_s >>
+            device_name: word_s >>
+            read_ios: num_s >>
+            read_merges: num_s >>
+            read_sectors: num_s >>
+            read_ticks: num_s >>
+            write_ios: num_s >>
+            write_merges: num_s >>
+            write_sectors: num_s >>
+            write_ticks: num_s >>
+            in_flight: num_s >>
+            io_ticks: num_s >>
+            time_in_queue: num_s >>
+            (device_name, BlockDeviceStats {
+                read_ios: read_ios,
+                read_merges: read_merges,
+                read_sectors: read_sectors,
+                read_ticks: read_ticks,
+                write_ios: write_ios,
+                write_merges: write_merges,
+                write_sectors: write_sectors,
+                write_ticks: write_ticks,
+                in_flight: in_flight,
+                io_ticks: io_ticks,
+                time_in_queue: time_in_queue
+            })
+    ))
+);
+
+/// Parse `/proc/diskstats` to get a vector of (String, BlockDeviceStats)
+named!(proc_diskstats<Vec<(String, BlockDeviceStats)>>,
+       many0!(ws!(flat_map!(not_line_ending, proc_diskstats_line)))
+);
+
+
 pub struct PlatformImpl;
 
 /// An implementation of `Platform` for Linux.
