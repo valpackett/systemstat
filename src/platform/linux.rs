@@ -208,40 +208,41 @@ named!(num_s<u64>, flat_map!(
 
 /// Parse a line of `/proc/diskstats`
 named!(
-    proc_diskstats_line<(String, BlockDeviceStats)>,
+    proc_diskstats_line<BlockDeviceStats>,
     ws!(do_parse!(
         major_number: num_s >>
-            minor_number: num_s >>
-            device_name: word_s >>
-            read_ios: num_s >>
-            read_merges: num_s >>
-            read_sectors: num_s >>
-            read_ticks: num_s >>
-            write_ios: num_s >>
-            write_merges: num_s >>
-            write_sectors: num_s >>
-            write_ticks: num_s >>
-            in_flight: num_s >>
-            io_ticks: num_s >>
-            time_in_queue: num_s >>
-            (device_name, BlockDeviceStats {
-                read_ios: read_ios,
-                read_merges: read_merges,
-                read_sectors: read_sectors,
-                read_ticks: read_ticks,
-                write_ios: write_ios,
-                write_merges: write_merges,
-                write_sectors: write_sectors,
-                write_ticks: write_ticks,
-                in_flight: in_flight,
-                io_ticks: io_ticks,
-                time_in_queue: time_in_queue
-            })
+        minor_number: num_s >>
+        name: word_s >>
+        read_ios: num_s >>
+        read_merges: num_s >>
+        read_sectors: num_s >>
+        read_ticks: num_s >>
+        write_ios: num_s >>
+        write_merges: num_s >>
+        write_sectors: num_s >>
+        write_ticks: num_s >>
+        in_flight: num_s >>
+        io_ticks: num_s >>
+        time_in_queue: num_s >>
+        (BlockDeviceStats {
+            name: name,
+            read_ios: read_ios,
+            read_merges: read_merges,
+            read_sectors: read_sectors,
+            read_ticks: read_ticks,
+            write_ios: write_ios,
+            write_merges: write_merges,
+            write_sectors: write_sectors,
+            write_ticks: write_ticks,
+            in_flight: in_flight,
+            io_ticks: io_ticks,
+            time_in_queue: time_in_queue
+        })
     ))
 );
 
 /// Parse `/proc/diskstats` to get a vector of (String, BlockDeviceStats)
-named!(proc_diskstats<Vec<(String, BlockDeviceStats)>>,
+named!(proc_diskstats<Vec<BlockDeviceStats>>,
        many0!(ws!(flat_map!(not_line_ending, proc_diskstats_line)))
 );
 
@@ -408,13 +409,13 @@ impl Platform for PlatformImpl {
 
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
         let mut result: BTreeMap<String, BlockDeviceStats> = BTreeMap::new();
-        let blkdevs: Vec<(String, BlockDeviceStats)> = try!(read_file("/proc/diskstats")
+        let blkdevs: Vec<BlockDeviceStats> = try!(read_file("/proc/diskstats")
             .and_then(|data| {
                 proc_diskstats(data.as_bytes()).to_result()
                     .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
             }));
-        for (dev, stats) in blkdevs {
-            result.entry(dev).or_insert(stats);
+        for blkstats in blkdevs {
+            result.entry(blkstats.name.clone()).or_insert(blkstats);
         }
         Ok(result)
     }
