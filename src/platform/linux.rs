@@ -411,6 +411,7 @@ impl Platform for PlatformImpl {
                     .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
             })
         );
+
         for blkstats in stats {
             result.entry(blkstats.name.clone()).or_insert(blkstats);
         }
