@@ -195,10 +195,10 @@ pub struct Network {
 
 #[derive(Debug, Clone)]
 pub struct NetworkStats {
-    pub rx_bytes: u64,
-    pub tx_bytes: u64,
-    pub rx_packets: u64,
-    pub tx_packets: u64,
-    pub rx_errors: u64,
-    pub tx_errors: u64,
+    pub rx_bytes: usize,
+    pub tx_bytes: usize,
+    pub rx_packets: usize,
+    pub tx_packets: usize,
+    pub rx_errors: usize,
+    pub tx_errors: usize,
 }

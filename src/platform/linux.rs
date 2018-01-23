@@ -370,12 +370,12 @@ impl Platform for PlatformImpl {
         let path_root: String = ("/sys/class/net/".to_string() + interface) + "/statistics/";
         let stats_file = |file: &str| (&path_root).to_string() + file;
 
-        let rx_bytes: u64 = try!(value_from_file::<u64>(&stats_file("rx_bytes")));
-        let tx_bytes: u64 = try!(value_from_file::<u64>(&stats_file("tx_bytes")));
-        let rx_packets: u64 = try!(value_from_file::<u64>(&stats_file("rx_packets")));
-        let tx_packets: u64 = try!(value_from_file::<u64>(&stats_file("tx_packets")));
-        let rx_errors: u64 = try!(value_from_file::<u64>(&stats_file("rx_errors")));
-        let tx_errors: u64 = try!(value_from_file::<u64>(&stats_file("tx_errors")));
+        let rx_bytes: usize = try!(value_from_file::<usize>(&stats_file("rx_bytes")));
+        let tx_bytes: usize = try!(value_from_file::<usize>(&stats_file("tx_bytes")));
+        let rx_packets: usize = try!(value_from_file::<usize>(&stats_file("rx_packets")));
+        let tx_packets: usize = try!(value_from_file::<usize>(&stats_file("tx_packets")));
+        let rx_errors: usize = try!(value_from_file::<usize>(&stats_file("rx_errors")));
+        let tx_errors: usize = try!(value_from_file::<usize>(&stats_file("tx_errors")));
 
         Ok(NetworkStats {
             rx_bytes,
