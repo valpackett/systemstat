@@ -200,30 +200,24 @@ fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
     }
 }
 
-/// Parse a single number
-named!(num_s<u64>, flat_map!(
-    map_res!(take_till!(is_space), str::from_utf8),
-    parse_to!(u64)
-));
-
 /// Parse a line of `/proc/diskstats`
 named!(
     proc_diskstats_line<BlockDeviceStats>,
     ws!(do_parse!(
-        major_number: num_s >>
-        minor_number: num_s >>
+        major_number: usize_s >>
+        minor_number: usize_s >>
         name: word_s >>
-        read_ios: num_s >>
-        read_merges: num_s >>
-        read_sectors: num_s >>
-        read_ticks: num_s >>
-        write_ios: num_s >>
-        write_merges: num_s >>
-        write_sectors: num_s >>
-        write_ticks: num_s >>
-        in_flight: num_s >>
-        io_ticks: num_s >>
-        time_in_queue: num_s >>
+        read_ios: usize_s >>
+        read_merges: usize_s >>
+        read_sectors: usize_s >>
+        read_ticks: usize_s >>
+        write_ios: usize_s >>
+        write_merges: usize_s >>
+        write_sectors: usize_s >>
+        write_ticks: usize_s >>
+        in_flight: usize_s >>
+        io_ticks: usize_s >>
+        time_in_queue: usize_s >>
         (BlockDeviceStats {
             name: name,
             read_ios: read_ios,
