@@ -193,8 +193,6 @@ pub struct Network {
     pub addrs: Vec<NetworkAddrs>,
 }
 
-pub type Disk = String;
-
 #[derive(Debug, Clone)]
 pub struct BlockDeviceStats {
     pub name: String,

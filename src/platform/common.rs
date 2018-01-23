@@ -57,11 +57,11 @@ pub trait Platform {
     /// Returns a vector of filesystem mount information objects.
     fn mounts(&self) -> io::Result<Vec<Filesystem>>;
 
-    /// Returns a map of block device statistics objects
-    fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>>;
-
     /// Returns a filesystem mount information object for the filesystem at a given path.
     fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem>;
+
+    /// Returns a map of block device statistics objects
+    fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>>;
 
     /// Returns a map of network intefrace information objects.
     ///

@@ -241,7 +241,7 @@ named!(
     ))
 );
 
-/// Parse `/proc/diskstats` to get a vector of (String, BlockDeviceStats)
+/// Parse `/proc/diskstats` to get a Vec<BlockDeviceStats>
 named!(proc_diskstats<Vec<BlockDeviceStats>>,
        many0!(ws!(flat_map!(not_line_ending, proc_diskstats_line)))
 );
@@ -403,21 +403,22 @@ impl Platform for PlatformImpl {
             .and_then(stat_mount)
     }
 
-    fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
-        unix::networks()
-    }
-
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
         let mut result: BTreeMap<String, BlockDeviceStats> = BTreeMap::new();
-        let blkdevs: Vec<BlockDeviceStats> = try!(read_file("/proc/diskstats")
+        let stats: Vec<BlockDeviceStats> = try!(read_file("/proc/diskstats")
             .and_then(|data| {
                 proc_diskstats(data.as_bytes()).to_result()
                     .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
-            }));
-        for blkstats in blkdevs {
+            })
+        );
+        for blkstats in stats {
             result.entry(blkstats.name.clone()).or_insert(blkstats);
         }
         Ok(result)
+    }
+
+    fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
+        unix::networks()
     }
 
     fn cpu_temp(&self) -> io::Result<f32> {
