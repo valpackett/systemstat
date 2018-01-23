@@ -89,11 +89,7 @@ impl Platform for PlatformImpl {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 
-    fn block_devices(&self) -> io::Result<Vec<Disk>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
-    }
-
-    fn block_device_statistics(&self, device: &str) -> io::Result<BlockDeviceStats> {
+    fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 
