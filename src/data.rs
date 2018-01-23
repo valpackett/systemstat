@@ -197,6 +197,7 @@ pub type Disk = String;
 
 #[derive(Debug, Clone)]
 pub struct BlockDeviceStats {
+    pub name: String,
     pub read_ios: u64,
     pub read_merges: u64,
     pub read_sectors: u64,
