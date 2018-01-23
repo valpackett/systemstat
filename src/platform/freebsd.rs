@@ -145,6 +145,14 @@ impl Platform for PlatformImpl {
         unix::networks()
     }
 
+    fn block_devices(&self) -> io::Result<Vec<Disk>> {
+        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    }
+
+    fn block_device_statistics(&self, device: &str) -> io::Result<BlockDeviceStats> {
+        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    }
+
     fn cpu_temp(&self) -> io::Result<f32> {
         let mut temp: i32 = 0; sysctl!(CPU0TEMP, &mut temp, mem::size_of::<i32>());
         // The sysctl interface supports more units, but both amdtemp and coretemp always

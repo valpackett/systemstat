@@ -57,6 +57,10 @@ pub trait Platform {
     /// Returns a vector of filesystem mount information objects.
     fn mounts(&self) -> io::Result<Vec<Filesystem>>;
 
+    fn block_devices(&self) -> io::Result<Vec<Disk>>;
+
+    fn block_device_statistics(&self, device: &str) -> io::Result<BlockDeviceStats>;
+
     /// Returns a filesystem mount information object for the filesystem at a given path.
     fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem>;
 
