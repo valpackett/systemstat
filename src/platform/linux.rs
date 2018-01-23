@@ -407,7 +407,16 @@ impl Platform for PlatformImpl {
     }
 
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        let mut result: BTreeMap<String, BlockDeviceStats> = BTreeMap::new();
+        let blkdevs: Vec<(String, BlockDeviceStats)> = try!(read_file("/proc/diskstats")
+            .and_then(|data| {
+                proc_diskstats(data.as_bytes()).to_result()
+                    .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+            }));
+        for (dev, stats) in blkdevs {
+            result.entry(dev).or_insert(stats);
+        }
+        Ok(result)
     }
 
     fn cpu_temp(&self) -> io::Result<f32> {
