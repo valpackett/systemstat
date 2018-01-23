@@ -122,6 +122,14 @@ impl Platform for PlatformImpl {
         unix::networks()
     }
 
+    fn block_devices(&self) -> io::Result<Vec<Disk>> {
+        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    }
+
+    fn block_device_statistics(&self, device: &str) -> io::Result<BlockDeviceStats> {
+        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    }
+
     fn cpu_temp(&self) -> io::Result<f32> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }

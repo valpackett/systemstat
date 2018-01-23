@@ -192,3 +192,20 @@ pub struct Network {
     pub name: String,
     pub addrs: Vec<NetworkAddrs>,
 }
+
+pub type Disk = String;
+
+#[derive(Debug, Clone)]
+pub struct BlockDeviceStats {
+    read_ios: u64,
+    read_merges: u64,
+    read_sectors: u64,
+    read_ticks: u64,
+    write_ios: u64,
+    write_merges: u64,
+    write_sectors: u64,
+    write_ticks: u64,
+    in_flight: u64,
+    io_ticks: u64,
+    time_in_queue: u64
+}
