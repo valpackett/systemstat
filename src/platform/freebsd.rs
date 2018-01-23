@@ -141,12 +141,12 @@ impl Platform for PlatformImpl {
         Ok(sfs.to_fs())
     }
 
-    fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
-        unix::networks()
-    }
-
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    }
+
+    fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
+        unix::networks()
     }
 
     fn cpu_temp(&self) -> io::Result<f32> {
