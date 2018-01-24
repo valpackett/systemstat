@@ -89,14 +89,14 @@ impl Platform for PlatformImpl {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 
+    fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
+        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    }
+
     fn cpu_temp(&self) -> io::Result<f32> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 }
-
-    fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
-    }
 
 fn power_status() -> winbase::SYSTEM_POWER_STATUS {
     let mut status = winbase::SYSTEM_POWER_STATUS {
