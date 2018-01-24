@@ -133,6 +133,10 @@ impl Platform for PlatformImpl {
     fn cpu_temp(&self) -> io::Result<f32> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
+
+    fn socket_stats(&self) -> io::Result<SocketStats> {
+        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    }
 }
 
 fn measure_cpu() -> io::Result<Vec<CpuTime>> {
