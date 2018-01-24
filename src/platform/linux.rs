@@ -252,6 +252,14 @@ impl Platform for PlatformImpl {
                     "Buffers".to_owned(),
                     ByteSize::b(info.bufferram as usize * unit),
                 );
+                meminfo.insert(
+                    "SwapTotal".to_owned(),
+                    ByteSize::b(info.totalswap as usize * unit),
+                );
+                meminfo.insert(
+                    "SwapFree".to_owned(),
+                    ByteSize::b(info.freeswap as usize * unit),
+                );
                 Ok(meminfo)
             })
             .map(|meminfo| {
