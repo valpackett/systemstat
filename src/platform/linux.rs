@@ -200,6 +200,47 @@ fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
     }
 }
 
+/// Parse a line of `/proc/diskstats`
+named!(
+    proc_diskstats_line<BlockDeviceStats>,
+    ws!(do_parse!(
+        major_number: usize_s >>
+        minor_number: usize_s >>
+        name: word_s >>
+        read_ios: usize_s >>
+        read_merges: usize_s >>
+        read_sectors: usize_s >>
+        read_ticks: usize_s >>
+        write_ios: usize_s >>
+        write_merges: usize_s >>
+        write_sectors: usize_s >>
+        write_ticks: usize_s >>
+        in_flight: usize_s >>
+        io_ticks: usize_s >>
+        time_in_queue: usize_s >>
+        (BlockDeviceStats {
+            name: name,
+            read_ios: read_ios,
+            read_merges: read_merges,
+            read_sectors: read_sectors,
+            read_ticks: read_ticks,
+            write_ios: write_ios,
+            write_merges: write_merges,
+            write_sectors: write_sectors,
+            write_ticks: write_ticks,
+            in_flight: in_flight,
+            io_ticks: io_ticks,
+            time_in_queue: time_in_queue
+        })
+    ))
+);
+
+/// Parse `/proc/diskstats` to get a Vec<BlockDeviceStats>
+named!(proc_diskstats<Vec<BlockDeviceStats>>,
+       many0!(ws!(flat_map!(not_line_ending, proc_diskstats_line)))
+);
+
+
 pub struct PlatformImpl;
 
 /// An implementation of `Platform` for Linux.
@@ -368,6 +409,21 @@ impl Platform for PlatformImpl {
                     .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No such mount"))
             })
             .and_then(stat_mount)
+    }
+
+    fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
+        let mut result: BTreeMap<String, BlockDeviceStats> = BTreeMap::new();
+        let stats: Vec<BlockDeviceStats> = try!(read_file("/proc/diskstats")
+            .and_then(|data| {
+                proc_diskstats(data.as_bytes()).to_result()
+                    .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+            })
+        );
+
+        for blkstats in stats {
+            result.entry(blkstats.name.clone()).or_insert(blkstats);
+        }
+        Ok(result)
     }
 
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {

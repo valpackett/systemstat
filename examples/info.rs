@@ -18,6 +18,15 @@ fn main() {
         Err(x) => println!("\nMounts: error: {}", x)
     }
 
+    match sys.block_device_statistics() {
+        Ok(stats) => {
+            for blkstats in stats.values() {
+                println!("{}: {:?}", blkstats.name, blkstats);
+            }
+        }
+        Err(x) => println!("Block statistics error: {}", x.to_string())
+    }
+
     match sys.networks() {
         Ok(netifs) => {
             println!("\nNetworks:");
