@@ -92,4 +92,9 @@ fn main() {
         Ok(cpu_temp) => println!("\nCPU temp: {}", cpu_temp),
         Err(x) => println!("\nCPU temp: {}", x)
     }
+
+    match sys.socket_stats() {
+        Ok(stats) => println!("\nSystem socket statistics: {:?}", stats),
+        Err(x) => println!("\nError: {}", x.to_string())
+    }
 }

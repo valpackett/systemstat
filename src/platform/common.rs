@@ -77,4 +77,7 @@ pub trait Platform {
     ///
     /// Depending on the platform, this might be core 0, package, etc.
     fn cpu_temp(&self) -> io::Result<f32>;
+
+    /// Returns information about the number of sockets in use
+    fn socket_stats(&self) -> io::Result<SocketStats>;
 }
