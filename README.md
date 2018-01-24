@@ -12,17 +12,19 @@ A Rust library for getting system information/statistics:
 - uptime / boot time
 - battery life
 - filesystem mounts (and disk usage)
+- disk I/O statistics
 - network interfaces
+- network traffic statistics
 - CPU temperature
 
 Unlike [sys-info-rs](https://github.com/FillZpp/sys-info-rs), this one is written purely in Rust.
 
-Supported platforms:
+Supported platforms (roughly ordered by completeness of support):
 
 - FreeBSD
-- OpenBSD (incomplete)
-- Linux (incomplete)
-- Windows (incomplete)
+- Linux
+- OpenBSD
+- Windows
 - *more coming soon*
 
 Originally written for [unixbar](https://github.com/myfreeweb/unixbar) :-)
