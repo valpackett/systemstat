@@ -29,6 +29,60 @@ impl<T> DelayedMeasurement<T> {
     }
 }
 
+#[cfg(not(target_os = "linux"))]
+#[derive(Debug, Clone)]
+pub struct PlatformCpuLoad {}
+
+#[cfg(target_os = "linux")]
+#[derive(Debug, Clone)]
+pub struct PlatformCpuLoad {
+    pub iowait: f32
+}
+
+impl PlatformCpuLoad {
+    #[cfg(target_os="linux")]
+    #[inline(always)]
+    pub fn avg_add(self, rhs: &Self) -> Self {
+        PlatformCpuLoad {
+            iowait: (self.iowait + rhs.iowait) / 2.0
+        }
+    }
+
+    #[cfg(not(target_os="linux"))]
+    #[inline(always)]
+    pub fn avg_add(self, rhs: &Self) -> Self {
+        PlatformCpuLoad {}
+    }
+
+    #[cfg(target_os="linux")]
+    #[inline(always)]
+    pub fn zero() -> Self {
+        PlatformCpuLoad {
+            iowait: 0.0,
+        }
+    }
+
+    #[cfg(not(target_os="linux"))]
+    #[inline(always)]
+    pub fn zero() -> Self {
+        PlatformCpuLoad {}
+    }
+
+    #[cfg(target_os="linux")]
+    #[inline(always)]
+    pub fn from(input: f32) -> Self {
+        PlatformCpuLoad {
+            iowait: input,
+        }
+    }
+
+    #[cfg(not(target_os="linux"))]
+    #[inline(always)]
+    pub fn from(input: f32) -> Self {
+        PlatformCpuLoad {}
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CPULoad {
     pub user: f32,
@@ -36,6 +90,7 @@ pub struct CPULoad {
     pub system: f32,
     pub interrupt: f32,
     pub idle: f32,
+    pub platform: PlatformCpuLoad
 }
 
 impl CPULoad {
@@ -47,6 +102,7 @@ impl CPULoad {
             system: (self.system + rhs.system) / 2.0,
             interrupt: (self.interrupt + rhs.interrupt) / 2.0,
             idle: (self.idle + rhs.idle) / 2.0,
+            platform: self.platform.avg_add(&rhs.platform),
         }
     }
 }
@@ -87,6 +143,7 @@ impl CpuTime {
                 system: 0.0,
                 interrupt: 0.0,
                 idle: 0.0,
+                platform: PlatformCpuLoad::zero(),
             }
         } else {
             CPULoad {
@@ -95,6 +152,7 @@ impl CpuTime {
                 system: self.system as f32 / total as f32,
                 interrupt: self.interrupt as f32 / total as f32,
                 idle: self.idle as f32 / total as f32,
+                platform: PlatformCpuLoad::from(self.other as f32 / total as f32),
             }
         }
     }
