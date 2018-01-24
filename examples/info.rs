@@ -24,7 +24,7 @@ fn main() {
                 println!("{}: {:?}", blkstats.name, blkstats);
             }
         }
-        Err(x) => println!("Block statistics error: {}", x.to_string())
+        Err(x) => println!("\nBlock statistics error: {}", x.to_string())
     }
 
     match sys.networks() {
