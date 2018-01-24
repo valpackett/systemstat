@@ -159,6 +159,10 @@ impl Platform for PlatformImpl {
         // use IK (deciKelvin)
         Ok((temp as f32 - 2731.5) / 10.0)
     }
+
+    fn socket_stats(&self) -> io::Result<SocketStats> {
+        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    }
 }
 
 

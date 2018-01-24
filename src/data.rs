@@ -218,3 +218,12 @@ pub struct NetworkStats {
     pub rx_errors: usize,
     pub tx_errors: usize,
 }
+
+#[derive(Debug, Clone)]
+pub struct SocketStats {
+    pub tcp_sockets_in_use: usize,
+    pub tcp_sockets_orphaned: usize,
+    pub udp_sockets_in_use: usize,
+    pub tcp6_sockets_in_use: usize,
+    pub udp6_sockets_in_use: usize,
+}

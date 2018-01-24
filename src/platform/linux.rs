@@ -181,6 +181,54 @@ named!(
     many1!(ws!(flat_map!(not_line_ending, proc_mounts_line)))
 );
 
+/// `/proc/net/sockstat` data
+struct ProcNetSockStat {
+    tcp_in_use: usize,
+    tcp_orphaned: usize,
+    udp_in_use: usize,
+}
+
+/// Parse `/proc/net/sockstat` to get socket statistics
+named!(
+    proc_net_sockstat<ProcNetSockStat>,
+    ws!(do_parse!(
+        not_line_ending >>
+        tag!("TCP: inuse") >>
+        tcp_in_use: usize_s >>
+        tag!("orphan") >>
+        tcp_orphaned: usize_s >>
+        not_line_ending >>
+        tag!("UDP: inuse") >>
+        udp_in_use: usize_s >>
+        (ProcNetSockStat {
+            tcp_in_use: tcp_in_use,
+            tcp_orphaned: tcp_orphaned,
+            udp_in_use: udp_in_use,
+        })
+    ))
+);
+
+/// `/proc/net/sockstat6` data
+struct ProcNetSockStat6 {
+    tcp_in_use: usize,
+    udp_in_use: usize,
+}
+
+/// Parse `/proc/net/sockstat6` to get socket statistics
+named!(
+    proc_net_sockstat6<ProcNetSockStat6>,
+    ws!(do_parse!(
+        tag!("TCP6: inuse") >>
+        tcp_in_use: usize_s >>
+        tag!("UDP6: inuse") >>
+        udp_in_use: usize_s >>
+        (ProcNetSockStat6 {
+            tcp_in_use: tcp_in_use,
+            udp_in_use: udp_in_use,
+        })
+    ))
+);
+
 /// Stat a mountpoint to gather filesystem statistics
 fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
     let mut info: statvfs = unsafe { mem::zeroed() };
@@ -458,6 +506,33 @@ impl Platform for PlatformImpl {
                 Err(_) => Err(io::Error::new(io::ErrorKind::Other, "Could not parse float")),
             })
             .map(|num| num / 1000.0)
+    }
+
+    fn socket_stats(&self) -> io::Result<SocketStats> {
+        let sockstats: ProcNetSockStat =
+            try!(read_file("/proc/net/sockstat")
+                 .and_then(|data| {
+                     proc_net_sockstat(data.as_bytes()).to_result().map_err(|err| {
+                         io::Error::new(io::ErrorKind::InvalidData, err)
+                     })
+                 })
+            );
+        let sockstats6: ProcNetSockStat6 =
+            try!(read_file("/proc/net/sockstat6")
+                 .and_then(|data| {
+                     proc_net_sockstat6(data.as_bytes()).to_result().map_err(|err| {
+                         io::Error::new(io::ErrorKind::InvalidData, err)
+                     })
+                 })
+            );
+        let result: SocketStats = SocketStats {
+            tcp_sockets_in_use: sockstats.tcp_in_use,
+            tcp_sockets_orphaned: sockstats.tcp_orphaned,
+            udp_sockets_in_use: sockstats.udp_in_use,
+            tcp6_sockets_in_use: sockstats6.tcp_in_use,
+            udp6_sockets_in_use: sockstats6.udp_in_use,
+        };
+        Ok(result)
     }
 }
 
