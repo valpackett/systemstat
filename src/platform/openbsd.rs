@@ -122,6 +122,10 @@ impl Platform for PlatformImpl {
         unix::networks()
     }
 
+    fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
+        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    }
+
     fn cpu_temp(&self) -> io::Result<f32> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
@@ -138,10 +142,6 @@ fn measure_cpu() -> io::Result<Vec<CpuTime>> {
         sysctl!(mib, &mut data[i], mem::size_of::<bsd::sysctl_cpu>());
     }
     Ok(data.into_iter().map(|cpu| cpu.into()).collect())
-    fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
-    }
-
 }
 
 #[derive(Default, Debug)]
