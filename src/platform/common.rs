@@ -60,6 +60,9 @@ pub trait Platform {
     /// Returns a filesystem mount information object for the filesystem at a given path.
     fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem>;
 
+    /// Returns a map of block device statistics objects
+    fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>>;
+
     /// Returns a map of network intefrace information objects.
     ///
     /// It's a map because most operating systems return an object per IP address, not per
