@@ -232,7 +232,8 @@ named!(
 /// Stat a mountpoint to gather filesystem statistics
 fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
     let mut info: statvfs = unsafe { mem::zeroed() };
-    let result = unsafe { statvfs(mount.target.as_ptr() as *const c_char, &mut info) };
+    let target = format!("{}\0", mount.target);
+    let result = unsafe { statvfs(target.as_ptr() as *const c_char, &mut info) };
     match result {
         0 => Ok(Filesystem {
             files: info.f_files as usize,
