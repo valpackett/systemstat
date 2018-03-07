@@ -222,6 +222,8 @@ pub struct BatteryLife {
 #[derive(Debug, Clone)]
 pub struct Filesystem {
     pub files: usize,
+    pub files_total: usize,
+    pub files_avail: usize,
     pub free: ByteSize,
     pub avail: ByteSize,
     pub total: ByteSize,

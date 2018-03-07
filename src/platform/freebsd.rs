@@ -218,6 +218,8 @@ impl statfs {
     fn to_fs(&self) -> Filesystem {
         Filesystem {
             files: self.f_files as usize - self.f_ffree as usize,
+            files_total: self.f_files as usize,
+            files_avail: self.f_ffree as usize,
             free: ByteSize::b(self.f_bfree as usize * self.f_bsize as usize),
             avail: ByteSize::b(self.f_bavail as usize * self.f_bsize as usize),
             total: ByteSize::b(self.f_blocks as usize * self.f_bsize as usize),
