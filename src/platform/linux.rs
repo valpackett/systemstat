@@ -236,7 +236,7 @@ fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
     let result = unsafe { statvfs(target.as_ptr() as *const c_char, &mut info) };
     match result {
         0 => Ok(Filesystem {
-            files: info.f_files as usize,
+            files: info.f_files as usize - info.f_ffree as usize,
             free: ByteSize::b(info.f_bfree as usize * info.f_bsize as usize),
             avail: ByteSize::b(info.f_bavail as usize * info.f_bsize as usize),
             total: ByteSize::b(info.f_blocks as usize * info.f_bsize as usize),
