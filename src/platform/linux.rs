@@ -237,6 +237,8 @@ fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
     match result {
         0 => Ok(Filesystem {
             files: info.f_files as usize - info.f_ffree as usize,
+            files_total: info.f_files as usize,
+            files_avail: info.f_favail as usize,
             free: ByteSize::b(info.f_bfree as usize * info.f_bsize as usize),
             avail: ByteSize::b(info.f_bavail as usize * info.f_bsize as usize),
             total: ByteSize::b(info.f_blocks as usize * info.f_bsize as usize),
