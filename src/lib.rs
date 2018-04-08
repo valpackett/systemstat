@@ -5,8 +5,6 @@
 extern crate libc;
 #[cfg(windows)]
 extern crate winapi;
-#[cfg(windows)]
-extern crate kernel32;
 extern crate bytesize;
 extern crate time;
 extern crate chrono;
