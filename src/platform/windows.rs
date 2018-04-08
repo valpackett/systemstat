@@ -1,10 +1,9 @@
-use winapi::minwindef::*;
-use winapi::{sysinfoapi, winbase};
-use kernel32;
-use std::{io, path, mem};
-use data::*;
+use winapi::shared::minwindef::*;
+use winapi::um::{sysinfoapi,winbase};
+
 use super::common::*;
-use kernel32::GetTickCount64;
+use data::*;
+use std::{io, path, mem};
 
 pub struct PlatformImpl;
 
@@ -36,7 +35,7 @@ impl Platform for PlatformImpl {
             ullAvailVirtual: 0,
             ullAvailExtendedVirtual: 0,
         };
-        unsafe { kernel32::GlobalMemoryStatusEx(&mut status); }
+        unsafe { sysinfoapi::GlobalMemoryStatusEx(&mut status); }
         let pm = PlatformMemory {
             load: status.dwMemoryLoad,
             total_phys: ByteSize::b(status.ullTotalPhys as usize),
@@ -55,7 +54,7 @@ impl Platform for PlatformImpl {
     }
 
     fn uptime(&self) -> io::Result<Duration> {
-        let since_boot: u64 = unsafe { GetTickCount64() };
+        let since_boot: u64 = unsafe { sysinfoapi::GetTickCount64() };
         Ok(Duration::from_millis(since_boot))
     }
 
@@ -115,6 +114,6 @@ fn power_status() -> winbase::SYSTEM_POWER_STATUS {
         BatteryLifeTime: 0,
         BatteryFullLifeTime: 0,
     };
-    unsafe { kernel32::GetSystemPowerStatus(&mut status); }
+    unsafe { winbase::GetSystemPowerStatus(&mut status); }
     status
 }
