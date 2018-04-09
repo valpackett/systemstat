@@ -7,10 +7,11 @@ use libc::{size_t, c_void,  malloc, free};
 
 use data::*;
 
-use std::{io, ptr};
-use std::io::Error;
-use std::mem;
 use std::collections::BTreeMap;
+use std::io::{Write, Error};
+use std::slice::from_raw_parts;
+use std::{io, ptr, mem};
+use std::ffi::CStr;
 
 // unions with non-`Copy` fields are unstable (see issue #32836)
 // #[repr(C)]
@@ -163,7 +164,7 @@ pub fn interfaces() -> io::Result<BTreeMap<String, Network>> {
             }
             let network = Network {
                 name: friendly_name,
-                addrs: addrs.iter().map(|addr| NetworkAddrs {addr: addr.clone(), netmask: IpAddr::Unsupported}).collect()
+                addrs: addrs.into_iter().map(|addr| NetworkAddrs {addr: addr, netmask: IpAddr::Unsupported}).collect()
             };
             map.insert(adapter_name,network);
 
@@ -176,7 +177,6 @@ pub fn interfaces() -> io::Result<BTreeMap<String, Network>> {
     Ok(map)
 }
 
-use std::slice::from_raw_parts;
 fn u16_array_to_string(p: *const u16) ->String {
     use std::char::{decode_utf16, REPLACEMENT_CHARACTER};    
     unsafe {
@@ -194,14 +194,11 @@ fn u16_array_to_string(p: *const u16) ->String {
     }
 }
 
-use std::ffi::CStr;
 fn c_char_array_to_string(p: *const c_char) -> String {
     unsafe {
         CStr::from_ptr(p).to_string_lossy().into_owned()
     }
 }
-
-use std::io::Write;
 
 fn physical_address_to_string(array: &[u8;8], length: DWORD) -> String {
     let mut bytes = Vec::with_capacity(length as usize);
@@ -214,7 +211,6 @@ fn physical_address_to_string(array: &[u8;8], length: DWORD) -> String {
     }
     String::from_utf8_lossy(&bytes[..]).into_owned()
 }
-
 
 // Thanks , copy from unix.rs and some modify
 fn parse_addr(aptr: *const SOCKADDR) -> IpAddr {
