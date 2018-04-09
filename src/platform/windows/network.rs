@@ -3,7 +3,7 @@ use winapi::shared::winerror::{ERROR_BUFFER_OVERFLOW, ERROR_SUCCESS};
 use winapi::shared::ws2ipdef::SOCKADDR_IN6_LH;
 use winapi::shared::minwindef::*;
 use winapi::ctypes::*;
-use libc::{size_t, c_void,  malloc, free};
+use libc::{c_void, uint8_t, size_t, malloc, free};
 
 use data::*;
 
@@ -57,6 +57,7 @@ struct IpAdapterUnicastAddress {
     valid_lifetime: ULONG,
     preferred_lifetime: ULONG,
     lease_lifetime: ULONG,
+    on_link_prefix_length: uint8_t
 }
 
 const MAX_ADAPTER_ADDRESS_LENGTH: usize = 8;
@@ -85,6 +86,7 @@ struct IpAdapterAddresses{
 }
 
 // https://msdn.microsoft.com/en-us/library/aa365915(v=vs.85).aspx
+// https://msdn.microsoft.com/zh-cn/library/windows/desktop/aa366066(d=printer,v=vs.85).aspx
 // C:\Program Files (x86)\Windows Kits\8.1\Include\um\IPHlpApi.h
 #[link(name = "Iphlpapi")]
 extern "system" {
@@ -156,7 +158,7 @@ pub fn interfaces() -> io::Result<BTreeMap<String, Network>> {
             // ip
             let mut cur_p_addr = (*cur_p_adapter).first_unicass_address;
             while !cur_p_addr.is_null() {
-                let addr = parse_addr((*cur_p_addr).address.lp_sockaddr);
+                let addr = parse_addr_and_netmask((*cur_p_addr).address.lp_sockaddr, (*cur_p_addr).on_link_prefix_length);
                 addrs.push(addr);
                // println!("{:?}", addr);
                // next addr              
@@ -164,7 +166,7 @@ pub fn interfaces() -> io::Result<BTreeMap<String, Network>> {
             }
             let network = Network {
                 name: friendly_name,
-                addrs: addrs.into_iter().map(|addr| NetworkAddrs {addr: addr, netmask: IpAddr::Unsupported}).collect()
+                addrs: addrs
             };
             map.insert(adapter_name,network);
 
@@ -213,22 +215,74 @@ fn physical_address_to_string(array: &[u8;8], length: DWORD) -> String {
 }
 
 // Thanks , copy from unix.rs and some modify
-fn parse_addr(aptr: *const SOCKADDR) -> IpAddr {
+fn parse_addr_and_netmask(aptr: *const SOCKADDR, mut net_bits: uint8_t) -> NetworkAddrs {
     if aptr == ptr::null() {
-        return IpAddr::Empty;
+        return NetworkAddrs {addr: IpAddr::Empty, netmask: IpAddr::Empty};
     }
     let addr = unsafe { *aptr };
     match addr.sa_family as i32 {
-        AF_INET => IpAddr::V4(Ipv4Addr::new(addr.sa_data[2] as u8, addr.sa_data[3] as u8,
-                                            addr.sa_data[4] as u8, addr.sa_data[5] as u8)),
+        AF_INET => {
+           let addr = IpAddr::V4(Ipv4Addr::new(addr.sa_data[2] as u8, addr.sa_data[3] as u8,
+                                            addr.sa_data[4] as u8, addr.sa_data[5] as u8));
+            let netmask = if net_bits <= 32 {
+                        let v = netmask_v4(net_bits);
+                        IpAddr::V4(Ipv4Addr::new(v[0], v[1], v[2], v[3]))
+                    } else {
+                        IpAddr::Empty
+                    };
+            NetworkAddrs { addr, netmask }
+        },
         AF_INET6 => {
             // This is horrible.
             let addr6: *const SOCKADDR_IN6_LH = unsafe { mem::transmute(aptr) };
             let mut a: [u8; 16] = unsafe { *(*addr6).sin6_addr.u.Byte() };
             &mut a[..].reverse();
             let a: [u16; 8] = unsafe { mem::transmute(a) };
-            IpAddr::V6(Ipv6Addr::new(a[7], a[6], a[5], a[4], a[3], a[2], a[1], a[0]))
+            let addr = IpAddr::V6(Ipv6Addr::new(a[7], a[6], a[5], a[4], a[3], a[2], a[1], a[0]));
+            let netmask = if net_bits <= 128 {
+                    let v = netmask_v6(net_bits);
+                    IpAddr::V6( Ipv6Addr::new(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]))
+                } else {
+                    IpAddr::Empty
+                };
+            NetworkAddrs { addr, netmask }
         },
-        _ => IpAddr::Unsupported,
+        _ => NetworkAddrs { addr: IpAddr::Empty, netmask: IpAddr::Empty }
     }
+}
+
+fn netmask_v4(bits: u8) -> [u8;4] {
+    let mut tmp = [0u8;4];
+    (0..4).for_each(|idx|
+        {
+            match (bits as usize> idx*8, bits as usize> idx*8 +8) {
+                (true, true) => {
+                    tmp[idx] = 255;
+                },
+                (true, false) => {
+                    tmp[idx] = 255 << 8 - (bits as usize- idx*8)  as usize;
+                },
+                _=> {}
+            }
+        }
+    );
+    tmp
+}
+
+fn netmask_v6(bits: u8) -> [u16;8] {
+    let mut tmp = [0u16;8];
+    (0..8).for_each(|idx|
+        {
+            match (bits as usize> idx*16, bits as usize> idx*16 +16) {
+                (true, true) => {
+                    tmp[idx] = 0xffff;
+                },
+                (true, false) => {
+                    tmp[idx] = 0xffff << 16 - (bits as usize- idx*16)  as usize;
+                },
+                _=> {}
+            }
+        }
+    );
+    tmp
 }
