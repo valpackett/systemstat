@@ -1,8 +1,10 @@
 use winapi::shared::minwindef::*;
 use winapi::um::{sysinfoapi,winbase};
 
-use super::common::*;
+mod network;
+
 use data::*;
+use super::common::*;
 use std::{io, path, mem};
 
 pub struct PlatformImpl;
@@ -89,7 +91,7 @@ impl Platform for PlatformImpl {
     }
 
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        network::interfaces()
     }
 
     fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {

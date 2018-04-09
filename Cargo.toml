@@ -14,13 +14,11 @@ time = "0.1"
 chrono = "0.4"
 lazy_static = "0.2"
 bytesize = "0.1"
+libc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 nom = "3.2"
 
-[target.'cfg(not(windows))'.dependencies]
-libc = "0.2"
-
 [target.'cfg(windows)'.dependencies.winapi]
 version = "0.3"
-features = ["sysinfoapi", "minwindef", "winbase"]
+features = ["sysinfoapi", "minwindef", "winbase", "winerror", "ws2def", "ws2ipdef"]
