@@ -215,7 +215,7 @@ fn physical_address_to_string(array: &[u8;8], length: DWORD) -> String {
 }
 
 // Thanks , copy from unix.rs and some modify
-fn parse_addr_and_netmask(aptr: *const SOCKADDR, mut net_bits: uint8_t) -> NetworkAddrs {
+fn parse_addr_and_netmask(aptr: *const SOCKADDR, net_bits: uint8_t) -> NetworkAddrs {
     if aptr == ptr::null() {
         return NetworkAddrs {addr: IpAddr::Empty, netmask: IpAddr::Empty};
     }
