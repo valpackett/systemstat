@@ -225,7 +225,7 @@ fn parse_addr_and_netmask(aptr: *const SOCKADDR, mut net_bits: uint8_t) -> Netwo
            let addr = IpAddr::V4(Ipv4Addr::new(addr.sa_data[2] as u8, addr.sa_data[3] as u8,
                                             addr.sa_data[4] as u8, addr.sa_data[5] as u8));
             let netmask = if net_bits <= 32 {
-                        netmask_v4(net_bits)
+                        IpAddr::V4(netmask_v4(net_bits))
                     } else {
                         IpAddr::Empty
                     };
@@ -239,7 +239,7 @@ fn parse_addr_and_netmask(aptr: *const SOCKADDR, mut net_bits: uint8_t) -> Netwo
             let a: [u16; 8] = unsafe { mem::transmute(a) };
             let addr = IpAddr::V6(Ipv6Addr::new(a[7], a[6], a[5], a[4], a[3], a[2], a[1], a[0]));
             let netmask = if net_bits <= 128 {
-                     netmask_v6(net_bits)
+                    IpAddr::V6(netmask_v6(net_bits))
                 } else {
                     IpAddr::Empty
                 };
