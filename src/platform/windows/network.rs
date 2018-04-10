@@ -215,7 +215,7 @@ fn physical_address_to_string(array: &[u8;8], length: DWORD) -> String {
 }
 
 // Thanks , copy from unix.rs and some modify
-fn parse_addr_and_netmask(aptr: *const SOCKADDR, mut net_bits: uint8_t) -> NetworkAddrs {
+fn parse_addr_and_netmask(aptr: *const SOCKADDR, net_bits: uint8_t) -> NetworkAddrs {
     if aptr == ptr::null() {
         return NetworkAddrs {addr: IpAddr::Empty, netmask: IpAddr::Empty};
     }
@@ -225,8 +225,7 @@ fn parse_addr_and_netmask(aptr: *const SOCKADDR, mut net_bits: uint8_t) -> Netwo
            let addr = IpAddr::V4(Ipv4Addr::new(addr.sa_data[2] as u8, addr.sa_data[3] as u8,
                                             addr.sa_data[4] as u8, addr.sa_data[5] as u8));
             let netmask = if net_bits <= 32 {
-                        let v = netmask_v4(net_bits);
-                        IpAddr::V4(Ipv4Addr::new(v[0], v[1], v[2], v[3]))
+                        IpAddr::V4(netmask_v4(net_bits))
                     } else {
                         IpAddr::Empty
                     };
@@ -240,8 +239,7 @@ fn parse_addr_and_netmask(aptr: *const SOCKADDR, mut net_bits: uint8_t) -> Netwo
             let a: [u16; 8] = unsafe { mem::transmute(a) };
             let addr = IpAddr::V6(Ipv6Addr::new(a[7], a[6], a[5], a[4], a[3], a[2], a[1], a[0]));
             let netmask = if net_bits <= 128 {
-                    let v = netmask_v6(net_bits);
-                    IpAddr::V6( Ipv6Addr::new(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]))
+                    IpAddr::V6(netmask_v6(net_bits))
                 } else {
                     IpAddr::Empty
                 };
@@ -251,38 +249,47 @@ fn parse_addr_and_netmask(aptr: *const SOCKADDR, mut net_bits: uint8_t) -> Netwo
     }
 }
 
-fn netmask_v4(bits: u8) -> [u8;4] {
-    let mut tmp = [0u8;4];
-    (0..4).for_each(|idx|
-        {
-            match (bits as usize> idx*8, bits as usize> idx*8 +8) {
-                (true, true) => {
-                    tmp[idx] = 255;
-                },
-                (true, false) => {
-                    tmp[idx] = 255 << 8 - (bits as usize- idx*8)  as usize;
-                },
-                _=> {}
-            }
+// This faster than [u8;4], but v6 is slower if use this..
+// And the scan() method is slower also.
+fn netmask_v4(bits: u8) -> Ipv4Addr {
+    let mut i = (0..4).map(|idx| {
+        let idx8 = idx << 3;
+        match (bits as usize > idx8, bits as usize > idx8 + 8) {
+            (true, true) => 255,
+            (true, false) => 255 << 8 - bits % 8,
+            _ => 0,
         }
-    );
-    tmp
+    });
+    Ipv4Addr::new(
+        i.next().unwrap(),
+        i.next().unwrap(),
+        i.next().unwrap(),
+        i.next().unwrap(),
+    )
 }
 
-fn netmask_v6(bits: u8) -> [u16;8] {
-    let mut tmp = [0u16;8];
-    (0..8).for_each(|idx|
-        {
-            match (bits as usize> idx*16, bits as usize> idx*16 +16) {
-                (true, true) => {
-                    tmp[idx] = 0xffff;
-                },
-                (true, false) => {
-                    tmp[idx] = 0xffff << 16 - (bits as usize- idx*16)  as usize;
-                },
-                _=> {}
+fn netmask_v6(bits: u8) -> Ipv6Addr {
+    let mut tmp = [0u16; 8];
+    (0..8).for_each(|idx| {
+        let idx16 = idx << 4;
+        match (bits as usize > idx16, bits as usize > idx16 + 16) {
+            (true, true) => {
+                tmp[idx] = 0xffff;
             }
+            (true, false) => {
+                tmp[idx] = 0xffff << 16 - bits % 16;
+            }
+            _ => {}
         }
-    );
-    tmp
+    });
+    Ipv6Addr::new(
+        tmp[0],
+        tmp[1],
+        tmp[2],
+        tmp[3],
+        tmp[4],
+        tmp[5],
+        tmp[6],
+        tmp[7],
+    )
 }
