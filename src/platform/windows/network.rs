@@ -249,21 +249,23 @@ fn parse_addr_and_netmask(aptr: *const SOCKADDR, net_bits: uint8_t) -> NetworkAd
     }
 }
 
+// This faster than [u8;4], but v6 is slower if use this..
+// And the scan() method is slower also.
 fn netmask_v4(bits: u8) -> Ipv4Addr {
-    let mut tmp = [0u8; 4];
-    (0..4).for_each(|idx| {
+    let mut i = (0..4).map(|idx| {
         let idx8 = idx << 3;
         match (bits as usize > idx8, bits as usize > idx8 + 8) {
-            (true, true) => {
-                tmp[idx] = 255;
-            }
-            (true, false) => {
-                tmp[idx] = 255 << 8 - bits % 8;
-            }
-            _ => {}
+            (true, true) => 255,
+            (true, false) => 255 << 8 - bits % 8,
+            _ => 0,
         }
     });
-    Ipv4Addr::new(tmp[0], tmp[1], tmp[2], tmp[3])
+    Ipv4Addr::new(
+        i.next().unwrap(),
+        i.next().unwrap(),
+        i.next().unwrap(),
+        i.next().unwrap(),
+    )
 }
 
 fn netmask_v6(bits: u8) -> Ipv6Addr {
