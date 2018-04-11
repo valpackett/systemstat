@@ -1,13 +1,42 @@
+use winapi::ctypes::c_char;
 use winapi::shared::minwindef::*;
-use winapi::um::{sysinfoapi,winbase};
+use winapi::um::{sysinfoapi, winbase};
 
 mod disk;
-mod network;
+mod network_interfaces;
 mod socket;
 
-use data::*;
 use super::common::*;
-use std::{io, path, mem};
+use data::*;
+
+use std::ffi::CStr;
+use std::slice::from_raw_parts;
+use std::{io, mem, path};
+
+fn u16_array_to_string(p: *const u16) -> String {
+    use std::char::{decode_utf16, REPLACEMENT_CHARACTER};
+    unsafe {
+        if p.is_null() {
+            return String::new();
+        }
+        let mut amt = 0usize;
+        while !p.offset(amt as isize).is_null() && *p.offset(amt as isize) != 0u16 {
+            amt += 1;
+        }
+        let u16s = from_raw_parts(p, amt);
+        decode_utf16(u16s.iter().cloned())
+            .map(|r| r.unwrap_or(REPLACEMENT_CHARACTER))
+            .collect::<String>()
+    }
+}
+
+fn c_char_array_to_string(p: *const c_char) -> String {
+    unsafe { CStr::from_ptr(p).to_string_lossy().into_owned() }
+}
+
+fn last_os_error() -> io::Result<()> {
+    Err(io::Error::last_os_error())
+}
 
 pub struct PlatformImpl;
 
@@ -39,7 +68,9 @@ impl Platform for PlatformImpl {
             ullAvailVirtual: 0,
             ullAvailExtendedVirtual: 0,
         };
-        unsafe { sysinfoapi::GlobalMemoryStatusEx(&mut status); }
+        unsafe {
+            sysinfoapi::GlobalMemoryStatusEx(&mut status);
+        }
         let pm = PlatformMemory {
             load: status.dwMemoryLoad,
             total_phys: ByteSize::b(status.ullTotalPhys as usize),
@@ -65,10 +96,13 @@ impl Platform for PlatformImpl {
     fn battery_life(&self) -> io::Result<BatteryLife> {
         let status = power_status();
         if status.BatteryFlag == 128 {
-            return Err(io::Error::new(io::ErrorKind::Other, "Battery absent"))
+            return Err(io::Error::new(io::ErrorKind::Other, "Battery absent"));
         }
         if status.BatteryFlag == 255 {
-            return Err(io::Error::new(io::ErrorKind::Other, "Battery status unknown"))
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "Battery status unknown",
+            ));
         }
         Ok(BatteryLife {
             remaining_capacity: status.BatteryLifePercent as f32 / 100.0,
@@ -93,7 +127,7 @@ impl Platform for PlatformImpl {
     }
 
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
-        network::interfaces()
+        network_interfaces::get()
     }
 
     fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
@@ -118,6 +152,8 @@ fn power_status() -> winbase::SYSTEM_POWER_STATUS {
         BatteryLifeTime: 0,
         BatteryFullLifeTime: 0,
     };
-    unsafe { winbase::GetSystemPowerStatus(&mut status); }
+    unsafe {
+        winbase::GetSystemPowerStatus(&mut status);
+    }
     status
 }

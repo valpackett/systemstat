@@ -5,12 +5,11 @@ use winapi::shared::winerror::{ERROR_BUFFER_OVERFLOW, ERROR_SUCCESS};
 use winapi::shared::ws2def::{AF_INET6, AF_INET, AF_UNSPEC, SOCKADDR};
 use winapi::shared::ws2ipdef::SOCKADDR_IN6_LH;
 
+use super::{c_char_array_to_string, last_os_error, u16_array_to_string};
 use data::*;
 
 use std::collections::BTreeMap;
-use std::ffi::CStr;
-use std::io::{Error, Write};
-use std::slice::from_raw_parts;
+use std::io::Write;
 use std::{io, mem, ptr};
 
 // unions with non-`Copy` fields are unstable (see issue #32836)
@@ -101,7 +100,7 @@ extern "system" {
 
 const WORKING_BUFFER_SIZEL: size_t = 15000;
 
-pub fn interfaces() -> io::Result<BTreeMap<String, Network>> {
+pub fn get() -> io::Result<BTreeMap<String, Network>> {
     let mut new_size: ULONG = WORKING_BUFFER_SIZEL as ULONG;
     let mut p_adapter: *mut IpAdapterAddresses;
     loop {
@@ -127,7 +126,7 @@ pub fn interfaces() -> io::Result<BTreeMap<String, Network>> {
                     continue;
                 }
                 _ => {
-                    return Err(Error::last_os_error());
+                    last_os_error()?;
                 }
             }
         }
@@ -182,27 +181,6 @@ pub fn interfaces() -> io::Result<BTreeMap<String, Network>> {
         free(p_adapter as *mut c_void);
     }
     Ok(map)
-}
-
-pub fn u16_array_to_string(p: *const u16) -> String {
-    use std::char::{decode_utf16, REPLACEMENT_CHARACTER};
-    unsafe {
-        if p.is_null() {
-            return String::new();
-        }
-        let mut amt = 0usize;
-        while !p.offset(amt as isize).is_null() && *p.offset(amt as isize) != 0u16 {
-            amt += 1;
-        }
-        let u16s = from_raw_parts(p, amt);
-        decode_utf16(u16s.iter().cloned())
-            .map(|r| r.unwrap_or(REPLACEMENT_CHARACTER))
-            .collect::<String>()
-    }
-}
-
-pub fn c_char_array_to_string(p: *const c_char) -> String {
-    unsafe { CStr::from_ptr(p).to_string_lossy().into_owned() }
 }
 
 fn physical_address_to_string(array: &[u8; 8], length: DWORD) -> String {
