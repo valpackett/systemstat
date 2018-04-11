@@ -3,6 +3,7 @@ use winapi::um::{sysinfoapi,winbase};
 
 mod disk;
 mod network;
+mod socket;
 
 use data::*;
 use super::common::*;
@@ -104,7 +105,7 @@ impl Platform for PlatformImpl {
     }
 
     fn socket_stats(&self) -> io::Result<SocketStats> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        socket::get()
     }
 }
 
