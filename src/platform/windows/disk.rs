@@ -3,7 +3,7 @@ use winapi::shared::minwindef::FALSE;
 use winapi::um::fileapi::{GetDiskFreeSpaceExW, GetLogicalDriveStringsW, GetVolumeInformationW};
 use winapi::um::winnt::ULARGE_INTEGER;
 
-use super::network::u16_array_to_string;
+use super::{last_os_error, u16_array_to_string};
 use data::*;
 
 use std::char::{decode_utf16, REPLACEMENT_CHARACTER};
@@ -19,7 +19,7 @@ pub fn drives() -> io::Result<Vec<Filesystem>> {
 
     // (X://\0)*\0
     if get_logical_drives + 1 != logical_drives {
-        Err(io::Error::last_os_error())?;
+        last_os_error()?;
     }
 
     unsafe { u16s.set_len(logical_drives as usize) };
@@ -84,7 +84,7 @@ fn get_volume_information(name: &[u16]) -> io::Result<(c_ulong, String, String)>
             255,
         )
     } {
-        Err(io::Error::last_os_error())?;
+        last_os_error()?;
     }
 
     Ok((
@@ -109,7 +109,7 @@ fn get_disk_space_ext(name: &[u16]) -> io::Result<(u64, u64, u64)> {
             &mut free as *mut _,
         )
     } {
-        Err(io::Error::last_os_error())?;
+        last_os_error()?;
     }
 
     unsafe { Ok((*total.QuadPart(), *avail.QuadPart(), *free.QuadPart())) }
