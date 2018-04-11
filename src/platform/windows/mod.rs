@@ -1,6 +1,7 @@
 use winapi::shared::minwindef::*;
 use winapi::um::{sysinfoapi,winbase};
 
+mod disk;
 mod network;
 
 use data::*;
@@ -79,7 +80,7 @@ impl Platform for PlatformImpl {
     }
 
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        disk::drives()
     }
 
     fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem> {

@@ -21,4 +21,4 @@ nom = "3.2"
 
 [target.'cfg(windows)'.dependencies.winapi]
 version = "0.3"
-features = ["sysinfoapi", "minwindef", "winbase", "winerror", "ws2def", "ws2ipdef"]
+features = ["fileapi", "sysinfoapi", "minwindef", "winbase", "winerror", "ws2def", "ws2ipdef"]
