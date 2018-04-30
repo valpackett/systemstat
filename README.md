@@ -25,6 +25,7 @@ Supported platforms (roughly ordered by completeness of support):
 - Linux
 - OpenBSD
 - Windows
+- macOS
 - *more coming soon*
 
 Originally written for [unixbar](https://github.com/myfreeweb/unixbar) :-)
