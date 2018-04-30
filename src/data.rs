@@ -200,6 +200,16 @@ pub struct PlatformMemory {
     pub paging: ByteSize,
 }
 
+#[cfg(target_os = "macos")]
+#[derive(Debug, Clone)]
+pub struct PlatformMemory {
+    pub active: ByteSize,
+    pub inactive: ByteSize,
+    pub wired: ByteSize,
+    pub cache: ByteSize,
+    pub free: ByteSize,
+}
+
 #[cfg(target_os = "linux")]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {
