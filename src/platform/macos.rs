@@ -1,5 +1,5 @@
 use std::{io, path, ptr, mem, ffi, slice, time};
-use libc::{c_void, c_int, c_schar, c_uchar, size_t, uid_t, sysctl, sysctlnametomib, timeval};
+use libc::{c_void, c_int, c_schar, c_uchar, size_t, uid_t, sysctl, sysctlnametomib, timeval, statfs};
 use data::*;
 use super::common::*;
 use super::unix;
@@ -74,7 +74,13 @@ impl Platform for PlatformImpl {
     }
 
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        let mut mptr: *mut statfs = ptr::null_mut();
+        let len = unsafe { getmntinfo(&mut mptr, 2 as i32) };
+        if len < 1 {
+            return Err(io::Error::new(io::ErrorKind::Other, "getmntinfo() failed"))
+        }
+        let mounts = unsafe { slice::from_raw_parts(mptr, len as usize) };
+        Ok(mounts.iter().map(statfs_to_fs).collect::<Vec<_>>())
     }
 
     fn mount_at<P: AsRef<path::Path>>(&self, _: P) -> io::Result<Filesystem> {
@@ -100,4 +106,25 @@ impl Platform for PlatformImpl {
     fn socket_stats(&self) -> io::Result<SocketStats> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
+}
+
+fn statfs_to_fs(x: &statfs) -> Filesystem {
+    Filesystem {
+        files: x.f_files as usize - x.f_ffree as usize,
+        files_total: x.f_files as usize,
+        files_avail: x.f_ffree as usize,
+        free: ByteSize::b(x.f_bfree as usize * x.f_bsize as usize),
+        avail: ByteSize::b(x.f_bavail as usize * x.f_bsize as usize),
+        total: ByteSize::b(x.f_blocks as usize * x.f_bsize as usize),
+        name_max: 256,
+        fs_type: unsafe { ffi::CStr::from_ptr(&x.f_fstypename[0]).to_string_lossy().into_owned() },
+        fs_mounted_from: unsafe { ffi::CStr::from_ptr(&x.f_mntfromname[0]).to_string_lossy().into_owned() },
+        fs_mounted_on: unsafe { ffi::CStr::from_ptr(&x.f_mntonname[0]).to_string_lossy().into_owned() },
+    }
+}
+
+#[link(name = "c")]
+extern "C" {
+    #[link_name = "getmntinfo$INODE64"]
+    fn getmntinfo(mntbufp: *mut *mut statfs, flags: c_int) -> c_int;
 }
