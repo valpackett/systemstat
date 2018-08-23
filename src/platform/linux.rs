@@ -504,7 +504,7 @@ impl Platform for PlatformImpl {
 
     fn cpu_temp(&self) -> io::Result<f32> {
         read_file("/sys/class/thermal/thermal_zone0/temp")
-            .and_then(|data| match data.parse::<f32>() {
+            .and_then(|data| match data.trim().parse::<f32>() {
                 Ok(x) => Ok(x),
                 Err(_) => Err(io::Error::new(io::ErrorKind::Other, "Could not parse float")),
             })
