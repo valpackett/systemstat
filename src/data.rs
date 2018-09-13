@@ -210,7 +210,7 @@ pub struct PlatformMemory {
     pub free: ByteSize,
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os="android"))]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {
     pub meminfo: BTreeMap<String, ByteSize>,
