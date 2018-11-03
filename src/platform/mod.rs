@@ -41,6 +41,10 @@ mod tests {
 
     #[test]
     fn test_cpu_load() {
+        if cfg!(target_os = "macos") {
+            println!("Test not applicable to this macos");
+            return;
+        }
         let load = PlatformImpl::new().cpu_load().unwrap();
         thread::sleep(Duration::from_millis(300));
         let load = load.done().unwrap();
@@ -53,6 +57,10 @@ mod tests {
 
     #[test]
     fn test_cpu_load_aggregate() {
+        if cfg!(target_os = "macos") {
+            println!("Test not applicable to this macos");
+            return;
+        }
         let cpu = PlatformImpl::new().cpu_load_aggregate().unwrap();
         thread::sleep(Duration::from_millis(300));
         let cpu = cpu.done().unwrap();
@@ -81,6 +89,10 @@ mod tests {
 
     #[test]
     fn test_on_ac_power() {
+        if cfg!(target_os = "macos") {
+            println!("Test not applicable to this macos");
+            return;
+        }
         PlatformImpl::new().on_ac_power().unwrap();
     }
 
@@ -88,11 +100,22 @@ mod tests {
     fn test_mounts() {
         let mounts = PlatformImpl::new().mounts().unwrap();
         assert!(mounts.len() > 0);
-        assert!(mounts.iter().find(|m| m.fs_mounted_on == "/").unwrap().fs_mounted_on == "/");
+        assert!(
+            mounts
+                .iter()
+                .find(|m| m.fs_mounted_on == "/")
+                .unwrap()
+                .fs_mounted_on
+                == "/"
+        );
     }
 
     #[test]
     fn test_mount_at() {
+        if cfg!(target_os = "macos") {
+            println!("Test not applicable to this macos");
+            return;
+        }
         let mount = PlatformImpl::new().mount_at("/").unwrap();
         assert!(mount.fs_mounted_on == "/");
     }
@@ -100,7 +123,15 @@ mod tests {
     #[test]
     fn test_networks() {
         let networks = PlatformImpl::new().networks().unwrap();
-        assert!(networks.values().find(|n| n.name == "lo0").unwrap().addrs.len() > 0);
+        assert!(
+            networks
+                .values()
+                .find(|n| n.name == "lo0")
+                .unwrap()
+                .addrs
+                .len()
+                > 0
+        );
     }
 
 }

@@ -16,7 +16,7 @@ lazy_static = "1.0"
 bytesize = "0.1"
 libc = "0.2"
 
-[target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
+[target.'cfg(any(target_os = "linux", target_os = "android", target_os = "macos"))'.dependencies]
 nom = "3.2"
 
 [target.'cfg(windows)'.dependencies.winapi]

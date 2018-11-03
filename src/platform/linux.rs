@@ -1,14 +1,14 @@
-use std::{io, path, mem, fs};
-use std::io::Read;
-use std::time::Duration;
-use libc::{c_ulong, c_ushort, c_uint, c_long, c_schar, c_char};
-use libc::statvfs;
-use data::*;
 use super::common::*;
 use super::unix;
-use nom::{digit, not_line_ending, space, is_space};
-use std::str;
+use data::*;
+use libc::statvfs;
+use libc::{c_char, c_long, c_schar, c_uint, c_ulong, c_ushort};
+use nom::{digit, is_space, not_line_ending, space};
+use std::io::Read;
 use std::path::Path;
+use std::str;
+use std::time::Duration;
+use std::{fs, io, mem, path};
 
 fn read_file(path: &str) -> io::Result<String> {
     let mut s = String::new();
@@ -23,8 +23,10 @@ fn value_from_file<T: str::FromStr>(path: &str) -> io::Result<T> {
         .parse()
         .and_then(|n| Ok(n))
         .or_else(|_| {
-            Err(io::Error::new(io::ErrorKind::Other,
-                               format!("File: \"{}\" doesn't contain an int value", &path)))
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("File: \"{}\" doesn't contain an int value", &path),
+            ))
         })
 }
 
@@ -36,9 +38,10 @@ fn time(on_ac: bool, charge_full: i32, charge_now: i32, current_now: i32) -> Dur
     if current_now != 0 {
         if on_ac {
             // Charge time
-            Duration::from_secs((charge_full - charge_now).abs() as u64 * 3600u64 / current_now as u64)
-        }
-        else {
+            Duration::from_secs(
+                (charge_full - charge_now).abs() as u64 * 3600u64 / current_now as u64,
+            )
+        } else {
             // Discharge time
             Duration::from_secs(charge_now as u64 * 3600u64 / current_now as u64)
         }
@@ -57,51 +60,55 @@ named!(
 );
 
 /// Parse `cpuX`, where X is a number
-named!(proc_stat_cpu_prefix<()>, do_parse!(tag!("cpu") >> digit >> ()));
+named!(
+    proc_stat_cpu_prefix<()>,
+    do_parse!(tag!("cpu") >> digit >> ())
+);
 
 /// Parse a `/proc/stat` CPU line into a `CpuTime` struct
 named!(
     proc_stat_cpu_time<CpuTime>,
     do_parse!(
-        ws!(proc_stat_cpu_prefix) >>
-        user: usize_s >>
-        nice: usize_s >>
-        system: usize_s >>
-        idle: usize_s >>
-        iowait: usize_s >>
-        irq: usize_s >>
-            (CpuTime {
-                 user: user,
-                 nice: nice,
-                 system: system,
-                 idle: idle,
-                 interrupt: irq,
-                 other: iowait,
-             })
+        ws!(proc_stat_cpu_prefix)
+            >> user: usize_s
+            >> nice: usize_s
+            >> system: usize_s
+            >> idle: usize_s
+            >> iowait: usize_s
+            >> irq: usize_s
+            >> (CpuTime {
+                user: user,
+                nice: nice,
+                system: system,
+                idle: idle,
+                interrupt: irq,
+                other: iowait,
+            })
     )
 );
 
 /// Parse the top CPU load aggregate line of `/proc/stat`
-named!(proc_stat_cpu_aggregate<()>, do_parse!(tag!("cpu") >> space >> ()));
+named!(
+    proc_stat_cpu_aggregate<()>,
+    do_parse!(tag!("cpu") >> space >> ())
+);
 
 /// Parse `/proc/stat` to extract per-CPU loads
 named!(
     proc_stat_cpu_times<Vec<CpuTime>>,
     do_parse!(
-        ws!(flat_map!(not_line_ending, proc_stat_cpu_aggregate)) >>
-        result: many1!(ws!(flat_map!(not_line_ending, proc_stat_cpu_time))) >>
-        (result)
+        ws!(flat_map!(not_line_ending, proc_stat_cpu_aggregate))
+            >> result: many1!(ws!(flat_map!(not_line_ending, proc_stat_cpu_time)))
+            >> (result)
     )
 );
 
 /// Get the current per-CPU `CpuTime` statistics
 fn cpu_time() -> io::Result<Vec<CpuTime>> {
     read_file("/proc/stat").and_then(|data| {
-        proc_stat_cpu_times(data.as_bytes()).to_result().map_err(
-            |err| {
-                io::Error::new(io::ErrorKind::InvalidData, err)
-            },
-        )
+        proc_stat_cpu_times(data.as_bytes())
+            .to_result()
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
     })
 }
 
@@ -109,11 +116,11 @@ fn cpu_time() -> io::Result<Vec<CpuTime>> {
 named!(
     proc_meminfo_line<(String, ByteSize)>,
     complete!(do_parse!(
-        key: flat_map!(take_until!(":"), parse_to!(String)) >>
-        tag!(":") >>
-        value: usize_s >>
-        ws!(tag!("kB")) >>
-        ((key, ByteSize::kib(value)))
+        key: flat_map!(take_until!(":"), parse_to!(String))
+            >> tag!(":")
+            >> value: usize_s
+            >> ws!(tag!("kB"))
+            >> ((key, ByteSize::kib(value)))
     ))
 );
 
@@ -141,17 +148,20 @@ named!(
 /// Get memory statistics
 fn memory_stats() -> io::Result<BTreeMap<String, ByteSize>> {
     read_file("/proc/meminfo").and_then(|data| {
-        proc_meminfo(data.as_bytes()).to_result().map_err(|err| {
-            io::Error::new(io::ErrorKind::InvalidData, err)
-        })
+        proc_meminfo(data.as_bytes())
+            .to_result()
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
     })
 }
 
 /// Parse a single word
-named!(word_s<String>, flat_map!(
-    map_res!(take_till!(is_space), str::from_utf8),
-    parse_to!(String)
-));
+named!(
+    word_s<String>,
+    flat_map!(
+        map_res!(take_till!(is_space), str::from_utf8),
+        parse_to!(String)
+    )
+);
 
 /// `/proc/mounts` data
 struct ProcMountsData {
@@ -164,14 +174,14 @@ struct ProcMountsData {
 named!(
     proc_mounts_line<ProcMountsData>,
     ws!(do_parse!(
-        source: word_s >>
-        target: word_s >>
-        fstype: word_s >>
-        (ProcMountsData {
-            source: source,
-            target: target,
-            fstype: fstype,
-        })
+        source: word_s
+            >> target: word_s
+            >> fstype: word_s
+            >> (ProcMountsData {
+                source: source,
+                target: target,
+                fstype: fstype,
+            })
     ))
 );
 
@@ -192,19 +202,19 @@ struct ProcNetSockStat {
 named!(
     proc_net_sockstat<ProcNetSockStat>,
     ws!(do_parse!(
-        not_line_ending >>
-        tag!("TCP: inuse") >>
-        tcp_in_use: usize_s >>
-        tag!("orphan") >>
-        tcp_orphaned: usize_s >>
-        not_line_ending >>
-        tag!("UDP: inuse") >>
-        udp_in_use: usize_s >>
-        (ProcNetSockStat {
-            tcp_in_use: tcp_in_use,
-            tcp_orphaned: tcp_orphaned,
-            udp_in_use: udp_in_use,
-        })
+        not_line_ending
+            >> tag!("TCP: inuse")
+            >> tcp_in_use: usize_s
+            >> tag!("orphan")
+            >> tcp_orphaned: usize_s
+            >> not_line_ending
+            >> tag!("UDP: inuse")
+            >> udp_in_use: usize_s
+            >> (ProcNetSockStat {
+                tcp_in_use: tcp_in_use,
+                tcp_orphaned: tcp_orphaned,
+                udp_in_use: udp_in_use,
+            })
     ))
 );
 
@@ -218,14 +228,14 @@ struct ProcNetSockStat6 {
 named!(
     proc_net_sockstat6<ProcNetSockStat6>,
     ws!(do_parse!(
-        tag!("TCP6: inuse") >>
-        tcp_in_use: usize_s >>
-        tag!("UDP6: inuse") >>
-        udp_in_use: usize_s >>
-        (ProcNetSockStat6 {
-            tcp_in_use: tcp_in_use,
-            udp_in_use: udp_in_use,
-        })
+        tag!("TCP6: inuse")
+            >> tcp_in_use: usize_s
+            >> tag!("UDP6: inuse")
+            >> udp_in_use: usize_s
+            >> (ProcNetSockStat6 {
+                tcp_in_use: tcp_in_use,
+                udp_in_use: udp_in_use,
+            })
     ))
 );
 
@@ -255,42 +265,42 @@ fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
 named!(
     proc_diskstats_line<BlockDeviceStats>,
     ws!(do_parse!(
-        major_number: usize_s >>
-        minor_number: usize_s >>
-        name: word_s >>
-        read_ios: usize_s >>
-        read_merges: usize_s >>
-        read_sectors: usize_s >>
-        read_ticks: usize_s >>
-        write_ios: usize_s >>
-        write_merges: usize_s >>
-        write_sectors: usize_s >>
-        write_ticks: usize_s >>
-        in_flight: usize_s >>
-        io_ticks: usize_s >>
-        time_in_queue: usize_s >>
-        (BlockDeviceStats {
-            name: name,
-            read_ios: read_ios,
-            read_merges: read_merges,
-            read_sectors: read_sectors,
-            read_ticks: read_ticks,
-            write_ios: write_ios,
-            write_merges: write_merges,
-            write_sectors: write_sectors,
-            write_ticks: write_ticks,
-            in_flight: in_flight,
-            io_ticks: io_ticks,
-            time_in_queue: time_in_queue
-        })
+        major_number: usize_s
+            >> minor_number: usize_s
+            >> name: word_s
+            >> read_ios: usize_s
+            >> read_merges: usize_s
+            >> read_sectors: usize_s
+            >> read_ticks: usize_s
+            >> write_ios: usize_s
+            >> write_merges: usize_s
+            >> write_sectors: usize_s
+            >> write_ticks: usize_s
+            >> in_flight: usize_s
+            >> io_ticks: usize_s
+            >> time_in_queue: usize_s
+            >> (BlockDeviceStats {
+                name: name,
+                read_ios: read_ios,
+                read_merges: read_merges,
+                read_sectors: read_sectors,
+                read_ticks: read_ticks,
+                write_ios: write_ios,
+                write_merges: write_merges,
+                write_sectors: write_sectors,
+                write_ticks: write_ticks,
+                in_flight: in_flight,
+                io_ticks: io_ticks,
+                time_in_queue: time_in_queue
+            })
     ))
 );
 
 /// Parse `/proc/diskstats` to get a Vec<BlockDeviceStats>
-named!(proc_diskstats<Vec<BlockDeviceStats>>,
-       many0!(ws!(flat_map!(not_line_ending, proc_diskstats_line)))
+named!(
+    proc_diskstats<Vec<BlockDeviceStats>>,
+    many0!(ws!(flat_map!(not_line_ending, proc_diskstats_line)))
 );
-
 
 pub struct PlatformImpl;
 
@@ -353,29 +363,32 @@ impl Platform for PlatformImpl {
                     ByteSize::b(info.freeswap as usize * unit),
                 );
                 Ok(meminfo)
-            })
-            .map(|meminfo| {
-                Memory {
-                    total: meminfo.get("MemTotal").map(|x| x.clone()).unwrap_or(
-                        ByteSize::b(0),
-                    ),
-                    free: meminfo.get("MemFree").map(|x| x.clone()).unwrap_or(
-                        ByteSize::b(0),
-                    ) +
-                        meminfo.get("Buffers").map(|x| x.clone()).unwrap_or(
-                            ByteSize::b(0),
-                        ) +
-                        meminfo.get("Cached").map(|x| x.clone()).unwrap_or(
-                            ByteSize::b(0),
-                        ) +
-                        meminfo.get("SReclaimable").map(|x| x.clone()).unwrap_or(
-                            ByteSize::b(0),
-                        ) -
-                        meminfo.get("Shmem").map(|x| x.clone()).unwrap_or(
-                            ByteSize::b(0),
-                        ),
-                    platform_memory: PlatformMemory { meminfo: meminfo },
-                }
+            }).map(|meminfo| Memory {
+                total: meminfo
+                    .get("MemTotal")
+                    .map(|x| x.clone())
+                    .unwrap_or(ByteSize::b(0)),
+                free: meminfo
+                    .get("MemFree")
+                    .map(|x| x.clone())
+                    .unwrap_or(ByteSize::b(0))
+                    + meminfo
+                        .get("Buffers")
+                        .map(|x| x.clone())
+                        .unwrap_or(ByteSize::b(0))
+                    + meminfo
+                        .get("Cached")
+                        .map(|x| x.clone())
+                        .unwrap_or(ByteSize::b(0))
+                    + meminfo
+                        .get("SReclaimable")
+                        .map(|x| x.clone())
+                        .unwrap_or(ByteSize::b(0))
+                    - meminfo
+                        .get("Shmem")
+                        .map(|x| x.clone())
+                        .unwrap_or(ByteSize::b(0)),
+                platform_memory: PlatformMemory { meminfo: meminfo },
             })
     }
 
@@ -413,17 +426,19 @@ impl Platform for PlatformImpl {
             }
         }
         if full != 0 {
-            let on_ac =
-                match self.on_ac_power() {
-                    Ok(true) => true,
-                    _ => false,
-                };
+            let on_ac = match self.on_ac_power() {
+                Ok(true) => true,
+                _ => false,
+            };
             Ok(BatteryLife {
                 remaining_capacity: capacity(full, now),
                 remaining_time: time(on_ac, full, now, current),
             })
         } else {
-            Err(io::Error::new(io::ErrorKind::Other, "Missing battery information"))
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                "Missing battery information",
+            ))
         }
     }
 
@@ -434,11 +449,10 @@ impl Platform for PlatformImpl {
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
         read_file("/proc/mounts")
             .and_then(|data| {
-                proc_mounts(data.as_bytes()).to_result().map_err(|err| {
-                    io::Error::new(io::ErrorKind::InvalidData, err)
-                })
-            })
-            .map(|mounts| {
+                proc_mounts(data.as_bytes())
+                    .to_result()
+                    .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+            }).map(|mounts| {
                 mounts
                     .into_iter()
                     .filter_map(|mount| stat_mount(mount).ok())
@@ -449,27 +463,24 @@ impl Platform for PlatformImpl {
     fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem> {
         read_file("/proc/mounts")
             .and_then(|data| {
-                proc_mounts(data.as_bytes()).to_result().map_err(|err| {
-                    io::Error::new(io::ErrorKind::InvalidData, err)
-                })
-            })
-            .and_then(|mounts| {
+                proc_mounts(data.as_bytes())
+                    .to_result()
+                    .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+            }).and_then(|mounts| {
                 mounts
                     .into_iter()
                     .find(|mount| Path::new(&mount.target) == path.as_ref())
                     .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No such mount"))
-            })
-            .and_then(stat_mount)
+            }).and_then(stat_mount)
     }
 
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
         let mut result: BTreeMap<String, BlockDeviceStats> = BTreeMap::new();
-        let stats: Vec<BlockDeviceStats> = try!(read_file("/proc/diskstats")
-            .and_then(|data| {
-                proc_diskstats(data.as_bytes()).to_result()
-                    .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
-            })
-        );
+        let stats: Vec<BlockDeviceStats> = try!(read_file("/proc/diskstats").and_then(|data| {
+            proc_diskstats(data.as_bytes())
+                .to_result()
+                .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+        }));
 
         for blkstats in stats {
             result.entry(blkstats.name.clone()).or_insert(blkstats);
@@ -506,28 +517,25 @@ impl Platform for PlatformImpl {
         read_file("/sys/class/thermal/thermal_zone0/temp")
             .and_then(|data| match data.trim().parse::<f32>() {
                 Ok(x) => Ok(x),
-                Err(_) => Err(io::Error::new(io::ErrorKind::Other, "Could not parse float")),
-            })
-            .map(|num| num / 1000.0)
+                Err(_) => Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "Could not parse float",
+                )),
+            }).map(|num| num / 1000.0)
     }
 
     fn socket_stats(&self) -> io::Result<SocketStats> {
-        let sockstats: ProcNetSockStat =
-            try!(read_file("/proc/net/sockstat")
-                 .and_then(|data| {
-                     proc_net_sockstat(data.as_bytes()).to_result().map_err(|err| {
-                         io::Error::new(io::ErrorKind::InvalidData, err)
-                     })
-                 })
-            );
+        let sockstats: ProcNetSockStat = try!(read_file("/proc/net/sockstat").and_then(|data| {
+            proc_net_sockstat(data.as_bytes())
+                .to_result()
+                .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+        }));
         let sockstats6: ProcNetSockStat6 =
-            try!(read_file("/proc/net/sockstat6")
-                 .and_then(|data| {
-                     proc_net_sockstat6(data.as_bytes()).to_result().map_err(|err| {
-                         io::Error::new(io::ErrorKind::InvalidData, err)
-                     })
-                 })
-            );
+            try!(read_file("/proc/net/sockstat6").and_then(|data| {
+                proc_net_sockstat6(data.as_bytes())
+                    .to_result()
+                    .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+            }));
         let result: SocketStats = SocketStats {
             tcp_sockets_in_use: sockstats.tcp_in_use,
             tcp_sockets_orphaned: sockstats.tcp_orphaned,
