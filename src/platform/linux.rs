@@ -394,22 +394,19 @@ impl Platform for PlatformImpl {
         for e in entries {
             let p = e.unwrap().path();
             let s = p.to_str().unwrap();
-            // let f = p.file_name().unwrap().to_str().unwrap();
-            if f.len() > 3 {
-                if value_from_file::<String>(&(s.to_string() + "/type")).map(|t| t == "Battery").unwrap_or(false) {
-                    full += try!(
-                        value_from_file::<i32>(&(s.to_string() + "/energy_full"))
-                            .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_full")))
-                    );
-                    now += try!(
-                        value_from_file::<i32>(&(s.to_string() + "/energy_now"))
-                            .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_now")))
-                    );
-                    current += try!(
-                        value_from_file::<i32>(&(s.to_string() + "/power_now"))
-                            .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/current_now")))
-                    );
-                }
+            if value_from_file::<String>(&(s.to_string() + "/type")).map(|t| t == "Battery").unwrap_or(false) {
+                full += try!(
+                    value_from_file::<i32>(&(s.to_string() + "/energy_full"))
+                        .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_full")))
+                );
+                now += try!(
+                    value_from_file::<i32>(&(s.to_string() + "/energy_now"))
+                        .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_now")))
+                );
+                current += try!(
+                    value_from_file::<i32>(&(s.to_string() + "/power_now"))
+                        .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/current_now")))
+                );
             }
         }
         if full != 0 {
