@@ -1,6 +1,6 @@
 use winapi::ctypes::c_ulong;
 use winapi::shared::winerror::ERROR_SUCCESS;
-use winapi::shared::ws2def::{AF_INET6, AF_INET};
+use winapi::shared::ws2def::{AF_INET, AF_INET6};
 
 use super::last_os_error;
 use data::*;

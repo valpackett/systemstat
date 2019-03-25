@@ -72,18 +72,20 @@ fn get_volume_information(name: &[u16]) -> io::Result<(c_ulong, String, String)>
     let mut max_component_length: c_ulong = 0;
     let mut fs_flags: c_ulong = 0;
 
-    if FALSE == unsafe {
-        GetVolumeInformationW(
-            p_name,
-            p_volume_name,
-            255,
-            p_volume_serial,
-            &mut max_component_length as *mut _,
-            &mut fs_flags as *mut _,
-            p_fs_name,
-            255,
-        )
-    } {
+    if FALSE
+        == unsafe {
+            GetVolumeInformationW(
+                p_name,
+                p_volume_name,
+                255,
+                p_volume_serial,
+                &mut max_component_length as *mut _,
+                &mut fs_flags as *mut _,
+                p_fs_name,
+                255,
+            )
+        }
+    {
         last_os_error()?;
     }
 
@@ -101,14 +103,16 @@ fn get_disk_space_ext(name: &[u16]) -> io::Result<(u64, u64, u64)> {
     let mut total: ULARGE_INTEGER = unsafe { mem::uninitialized() };
     let mut free: ULARGE_INTEGER = unsafe { mem::uninitialized() };
 
-    if FALSE == unsafe {
-        GetDiskFreeSpaceExW(
-            p_name,
-            &mut avail as *mut _,
-            &mut total as *mut _,
-            &mut free as *mut _,
-        )
-    } {
+    if FALSE
+        == unsafe {
+            GetDiskFreeSpaceExW(
+                p_name,
+                &mut avail as *mut _,
+                &mut total as *mut _,
+                &mut free as *mut _,
+            )
+        }
+    {
         last_os_error()?;
     }
 

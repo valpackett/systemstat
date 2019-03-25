@@ -2,7 +2,7 @@ use libc::{c_void, free, malloc, size_t, uint8_t};
 use winapi::ctypes::*;
 use winapi::shared::minwindef::*;
 use winapi::shared::winerror::{ERROR_BUFFER_OVERFLOW, ERROR_SUCCESS};
-use winapi::shared::ws2def::{AF_INET6, AF_INET, AF_UNSPEC, SOCKADDR};
+use winapi::shared::ws2def::{AF_INET, AF_INET6, AF_UNSPEC, SOCKADDR};
 use winapi::shared::ws2ipdef::SOCKADDR_IN6_LH;
 
 use super::{c_char_array_to_string, last_os_error, u16_array_to_string};
@@ -226,14 +226,7 @@ fn parse_addr_and_netmask(aptr: *const SOCKADDR, net_bits: uint8_t) -> NetworkAd
             &mut a[..].reverse();
             let a: [u16; 8] = unsafe { mem::transmute(a) };
             let addr = IpAddr::V6(Ipv6Addr::new(
-                a[7],
-                a[6],
-                a[5],
-                a[4],
-                a[3],
-                a[2],
-                a[1],
-                a[0],
+                a[7], a[6], a[5], a[4], a[3], a[2], a[1], a[0],
             ));
             let netmask = if net_bits <= 128 {
                 IpAddr::V6(netmask_v6(net_bits))
@@ -283,14 +276,7 @@ fn netmask_v6(bits: u8) -> Ipv6Addr {
         }
     });
     Ipv6Addr::new(
-        tmp[0],
-        tmp[1],
-        tmp[2],
-        tmp[3],
-        tmp[4],
-        tmp[5],
-        tmp[6],
-        tmp[7],
+        tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5], tmp[6], tmp[7],
     )
 }
 
@@ -330,8 +316,9 @@ fn netmask_v4_test() {
         (30, "255.255.255.252"),
         (31, "255.255.255.254"),
         (32, "255.255.255.255"),
-    ].into_iter()
-        .for_each(|(i, addr)| assert_eq!(netmask_v4(i), addr.parse::<Ipv4Addr>().unwrap()))
+    ]
+    .into_iter()
+    .for_each(|(i, addr)| assert_eq!(netmask_v4(i), addr.parse::<Ipv4Addr>().unwrap()))
 }
 
 #[test]
@@ -466,6 +453,7 @@ fn netmask_v6_test() {
         (126, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffc"),
         (127, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe"),
         (128, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
-    ].into_iter()
-        .for_each(|(i, addr)| assert_eq!(netmask_v6(i), addr.parse::<Ipv6Addr>().unwrap()))
+    ]
+    .into_iter()
+    .for_each(|(i, addr)| assert_eq!(netmask_v6(i), addr.parse::<Ipv6Addr>().unwrap()))
 }
