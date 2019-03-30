@@ -385,6 +385,19 @@ impl Platform for PlatformImpl {
         Ok(Duration::from_secs(info.uptime as u64))
     }
 
+    fn boot_time(&self) -> io::Result<DateTime<Utc>> {
+        read_file("/proc/stat").and_then(|data| {
+            data.lines()
+                .find(|line| line.starts_with("btime "))
+                .ok_or(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Could not find btime in /proc/stat"))
+                .and_then(|line|
+                  Utc.datetime_from_str(line, "btime %s")
+                     .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err)))
+        })
+    }
+
     fn battery_life(&self) -> io::Result<BatteryLife> {
         let dir = "/sys/class/power_supply";
         let entries = try!(fs::read_dir(&dir));

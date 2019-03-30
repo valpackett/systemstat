@@ -6,7 +6,7 @@ use std::io;
 pub use std::time::Duration;
 pub use std::net::{Ipv4Addr, Ipv6Addr};
 pub use std::collections::BTreeMap;
-pub use chrono::{DateTime, Utc, NaiveDateTime};
+pub use chrono::{DateTime, Utc, NaiveDateTime, TimeZone};
 pub use bytesize::ByteSize;
 use std::ops::Sub;
 
