@@ -99,7 +99,7 @@ fn cpu_time() -> io::Result<Vec<CpuTime>> {
     read_file("/proc/stat").and_then(|data| {
         proc_stat_cpu_times(data.as_bytes()).to_result().map_err(
             |err| {
-                io::Error::new(io::ErrorKind::InvalidData, err)
+                io::Error::new(io::ErrorKind::InvalidData, err.to_string())
             },
         )
     })
@@ -142,7 +142,7 @@ named!(
 fn memory_stats() -> io::Result<BTreeMap<String, ByteSize>> {
     read_file("/proc/meminfo").and_then(|data| {
         proc_meminfo(data.as_bytes()).to_result().map_err(|err| {
-            io::Error::new(io::ErrorKind::InvalidData, err)
+            io::Error::new(io::ErrorKind::InvalidData, err.to_string())
         })
     })
 }
@@ -394,7 +394,7 @@ impl Platform for PlatformImpl {
                     "Could not find btime in /proc/stat"))
                 .and_then(|line|
                   Utc.datetime_from_str(line, "btime %s")
-                     .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err)))
+                     .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string())))
         })
     }
 
@@ -455,7 +455,7 @@ impl Platform for PlatformImpl {
         read_file("/proc/mounts")
             .and_then(|data| {
                 proc_mounts(data.as_bytes()).to_result().map_err(|err| {
-                    io::Error::new(io::ErrorKind::InvalidData, err)
+                    io::Error::new(io::ErrorKind::InvalidData, err.to_string())
                 })
             })
             .map(|mounts| {
@@ -470,7 +470,7 @@ impl Platform for PlatformImpl {
         read_file("/proc/mounts")
             .and_then(|data| {
                 proc_mounts(data.as_bytes()).to_result().map_err(|err| {
-                    io::Error::new(io::ErrorKind::InvalidData, err)
+                    io::Error::new(io::ErrorKind::InvalidData, err.to_string())
                 })
             })
             .and_then(|mounts| {
@@ -487,7 +487,7 @@ impl Platform for PlatformImpl {
         let stats: Vec<BlockDeviceStats> = try!(read_file("/proc/diskstats")
             .and_then(|data| {
                 proc_diskstats(data.as_bytes()).to_result()
-                    .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+                    .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
             })
         );
 
@@ -537,7 +537,7 @@ impl Platform for PlatformImpl {
             try!(read_file("/proc/net/sockstat")
                  .and_then(|data| {
                      proc_net_sockstat(data.as_bytes()).to_result().map_err(|err| {
-                         io::Error::new(io::ErrorKind::InvalidData, err)
+                         io::Error::new(io::ErrorKind::InvalidData, err.to_string())
                      })
                  })
             );
@@ -545,7 +545,7 @@ impl Platform for PlatformImpl {
             try!(read_file("/proc/net/sockstat6")
                  .and_then(|data| {
                      proc_net_sockstat6(data.as_bytes()).to_result().map_err(|err| {
-                         io::Error::new(io::ErrorKind::InvalidData, err)
+                         io::Error::new(io::ErrorKind::InvalidData, err.to_string())
                      })
                  })
             );
