@@ -83,16 +83,6 @@ impl Platform for PlatformImpl {
         Ok(mounts.iter().map(statfs_to_fs).collect::<Vec<_>>())
     }
 
-    fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem> {
-        self.mounts()
-            .and_then(|mounts| {
-                mounts
-                    .into_iter()
-                    .find(|mount| path::Path::new(&mount.fs_mounted_on) == path.as_ref())
-                    .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No such mount"))
-        })
-    }
-
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
