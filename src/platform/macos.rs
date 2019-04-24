@@ -83,10 +83,6 @@ impl Platform for PlatformImpl {
         Ok(mounts.iter().map(statfs_to_fs).collect::<Vec<_>>())
     }
 
-    fn mount_at<P: AsRef<path::Path>>(&self, _: P) -> io::Result<Filesystem> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
-    }
-
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }

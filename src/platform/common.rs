@@ -58,7 +58,15 @@ pub trait Platform {
     fn mounts(&self) -> io::Result<Vec<Filesystem>>;
 
     /// Returns a filesystem mount information object for the filesystem at a given path.
-    fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem>;
+    fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem> {
+        self.mounts()
+            .and_then(|mounts| {
+                mounts
+                    .into_iter()
+                    .find(|mount| path::Path::new(&mount.fs_mounted_on) == path.as_ref())
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No such mount"))
+        })
+    }
 
     /// Returns a map of block device statistics objects
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>>;
