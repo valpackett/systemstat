@@ -100,7 +100,16 @@ mod tests {
     #[test]
     fn test_networks() {
         let networks = PlatformImpl::new().networks().unwrap();
-        assert!(networks.values().find(|n| n.name == "lo0").unwrap().addrs.len() > 0);
+        assert!(networks.values().filter(|n| n.name == "lo" || n.name == "lo0").next().unwrap().addrs.len() > 0);
+    }
+
+    #[test]
+    fn test_cpu_measurement_is_send() {
+        use crate::{DelayedMeasurement, CPULoad};
+        fn take_delayed(dm: DelayedMeasurement<Vec<CPULoad>>) {
+            use std::thread;
+            thread::spawn(move || dm);
+        }
     }
 
 }
