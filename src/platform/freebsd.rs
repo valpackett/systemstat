@@ -106,7 +106,7 @@ impl Platform for PlatformImpl {
     fn boot_time(&self) -> io::Result<DateTime<Utc>> {
         let mut data: timeval = unsafe { mem::zeroed() };
         sysctl!(KERN_BOOTTIME, &mut data, mem::size_of::<timeval>());
-        Ok(DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(data.tv_sec, data.tv_usec as u32), Utc))
+        Ok(DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(data.tv_sec.into(), data.tv_usec as u32), Utc))
     }
 
     fn battery_life(&self) -> io::Result<BatteryLife> {
