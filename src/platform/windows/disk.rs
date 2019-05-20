@@ -1,6 +1,6 @@
 use winapi::ctypes::c_ulong;
 use winapi::shared::minwindef::FALSE;
-use winapi::um::fileapi::{GetDiskFreeSpaceExW, GetLogicalDriveStringsW, GetVolumeInformationW};
+use winapi::um::fileapi::{GetDiskFreeSpaceExW, GetLogicalDriveStringsW, GetVolumeInformationW, GetDriveTypeW};
 use winapi::um::winnt::ULARGE_INTEGER;
 
 use super::{last_os_error, u16_array_to_string};
@@ -35,20 +35,37 @@ pub fn drives() -> io::Result<Vec<Filesystem>> {
             .collect::<String>();
 
         let (max, fs, tag) = get_volume_information(us)?;
-        let (total, avail, free) = get_disk_space_ext(us)?;
+        
+        let tmp;
+        if max == 0 {
+            tmp = Filesystem {
+                name_max: max as _,
+                fs_type: fs,
+                fs_mounted_from: tag,
+                fs_mounted_on: name,
+                total: ByteSize::b(0),
+                avail: ByteSize::b(0),
+                free: ByteSize::b(0),
+                files: 0,
+                files_total: 0,
+                files_avail: 0
+            };
+        } else {
+            let (total, avail, free) = get_disk_space_ext(us)?;
 
-        let tmp = Filesystem {
-            name_max: max as _,
-            fs_type: fs,
-            fs_mounted_from: tag,
-            fs_mounted_on: name,
-            total: ByteSize::b(total as usize),
-            avail: ByteSize::b(avail as usize),
-            free: ByteSize::b(free as usize),
-            files: 0, // don't find..
-            files_total: 0,
-            files_avail: 0,
-        };
+            tmp = Filesystem {
+                name_max: max as _,
+                fs_type: fs,
+                fs_mounted_from: tag,
+                fs_mounted_on: name,
+                total: ByteSize::b(total as usize),
+                avail: ByteSize::b(avail as usize),
+                free: ByteSize::b(free as usize),
+                files: 0, // don't find..
+                files_total: 0,
+                files_avail: 0,
+            };
+        }
 
         vec.push(tmp);
     }
@@ -84,7 +101,23 @@ fn get_volume_information(name: &[u16]) -> io::Result<(c_ulong, String, String)>
             255,
         )
     } {
-        last_os_error()?;
+        match unsafe { GetDriveTypeW(p_name) } {
+            2 => { // REMOVABLE DRIVE (Floppy, USB, etc)
+                return Ok((
+                    max_component_length,
+                    String::from("REM"),
+                    u16_array_to_string(p_volume_name)
+                ))
+            },
+            5 => { // DRIVE_CDROM
+                return Ok((
+                    max_component_length,
+                    String::from("CDROM"),
+                    u16_array_to_string(p_volume_name)
+                ))
+            },
+            _ => last_os_error()?
+        };
     }
 
     Ok((
