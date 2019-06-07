@@ -210,8 +210,8 @@ struct statfs {
     f_fsid: fsid_t,
     f_charspare: [c_schar; 80],
     f_fstypename: [c_schar; 16],
-    f_mntfromname: [c_schar; 88],
-    f_mntonname: [c_schar; 88],
+    f_mntfromname: [c_schar; 1024],
+    f_mntonname: [c_schar; 1024],
 }
 
 impl statfs {
