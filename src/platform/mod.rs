@@ -38,6 +38,7 @@ mod tests {
     use super::*;
     use std::thread;
     use std::time::Duration;
+    use std::path::PathBuf;
 
     #[test]
     fn test_cpu_load() {
@@ -93,7 +94,8 @@ mod tests {
 
     #[test]
     fn test_mount_at() {
-        let mount = PlatformImpl::new().mount_at("/").unwrap();
+        let path = PathBuf::from("/");
+        let mount = PlatformImpl::new().mount_at(path).unwrap();
         assert!(mount.fs_mounted_on == "/");
     }
 
