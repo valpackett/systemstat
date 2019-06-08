@@ -1,6 +1,7 @@
 // You are likely to be eaten by a grue.
 
 use std::{io, path, ptr, mem, ffi, slice, time};
+use std::os::unix::ffi::OsStrExt;
 use libc::{c_void, c_int, c_schar, c_uchar, size_t, uid_t, sysctl, sysctlnametomib, timeval};
 use data::*;
 use super::common::*;
@@ -135,7 +136,7 @@ impl Platform for PlatformImpl {
 
     fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem> {
         let mut sfs: statfs = unsafe { mem::zeroed() };
-        if unsafe { statfs(path.as_ref().to_string_lossy().as_ptr(), &mut sfs) } != 0 {
+        if unsafe { statfs(path.as_ref().as_os_str().as_bytes().clone().as_ptr(), &mut sfs) } != 0 {
             return Err(io::Error::new(io::ErrorKind::Other, "statfs() failed"))
         }
         Ok(sfs.to_fs())
