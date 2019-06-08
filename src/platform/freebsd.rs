@@ -233,6 +233,8 @@ impl statfs {
 
 #[link(name = "c")]
 extern "C" {
+    #[link_name = "getmntinfo@FBSD_1.0"]
     fn getmntinfo(mntbufp: *mut *mut statfs, flags: c_int) -> c_int;
+    #[link_name = "statfs@FBSD_1.0"]
     fn statfs(path: *const c_uchar, buf: *mut statfs) -> c_int;
 }
