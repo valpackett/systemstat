@@ -93,7 +93,8 @@ mod tests {
 
     #[test]
     fn test_mount_at() {
-        let mount = PlatformImpl::new().mount_at("/").unwrap();
+        // XXX: PathBuf required instead of constant string at least on FreeBSD??
+        let mount = PlatformImpl::new().mount_at(std::path::PathBuf::from("/")).unwrap();
         assert!(mount.fs_mounted_on == "/");
     }
 
