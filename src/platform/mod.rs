@@ -107,6 +107,7 @@ mod tests {
     #[test]
     fn test_cpu_measurement_is_send() {
         use crate::{DelayedMeasurement, CPULoad};
+        #[allow(dead_code)]
         fn take_delayed(dm: DelayedMeasurement<Vec<CPULoad>>) {
             use std::thread;
             thread::spawn(move || dm);
