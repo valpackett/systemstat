@@ -99,6 +99,6 @@ fn main() {
 
     match sys.socket_stats() {
         Ok(stats) => println!("\nSystem socket statistics: {:?}", stats),
-        Err(x) => println!("\nError: {}", x.to_string())
+        Err(x) => println!("\nSystem socket statistics: error: {}", x.to_string())
     }
 }
