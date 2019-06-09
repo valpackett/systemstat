@@ -35,7 +35,7 @@ pub fn drives() -> io::Result<Vec<Filesystem>> {
             .collect::<String>();
 
         let (max, fs, tag) = get_volume_information(us)?;
-        
+
         let tmp;
         if max == 0 {
             tmp = Filesystem {
@@ -58,9 +58,9 @@ pub fn drives() -> io::Result<Vec<Filesystem>> {
                 fs_type: fs,
                 fs_mounted_from: tag,
                 fs_mounted_on: name,
-                total: ByteSize::b(total as usize),
-                avail: ByteSize::b(avail as usize),
-                free: ByteSize::b(free as usize),
+                total: ByteSize::b(total),
+                avail: ByteSize::b(avail),
+                free: ByteSize::b(free),
                 files: 0, // don't find..
                 files_total: 0,
                 files_avail: 0,

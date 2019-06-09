@@ -73,13 +73,13 @@ impl Platform for PlatformImpl {
         }
         let pm = PlatformMemory {
             load: status.dwMemoryLoad,
-            total_phys: ByteSize::b(status.ullTotalPhys as usize),
-            avail_phys: ByteSize::b(status.ullAvailPhys as usize),
-            total_pagefile: ByteSize::b(status.ullTotalPageFile as usize),
-            avail_pagefile: ByteSize::b(status.ullAvailPageFile as usize),
-            total_virt: ByteSize::b(status.ullTotalVirtual as usize),
-            avail_virt: ByteSize::b(status.ullAvailVirtual as usize),
-            avail_ext: ByteSize::b(status.ullAvailExtendedVirtual as usize),
+            total_phys: ByteSize::b(status.ullTotalPhys),
+            avail_phys: ByteSize::b(status.ullAvailPhys),
+            total_pagefile: ByteSize::b(status.ullTotalPageFile),
+            avail_pagefile: ByteSize::b(status.ullAvailPageFile),
+            total_virt: ByteSize::b(status.ullTotalVirtual),
+            avail_virt: ByteSize::b(status.ullAvailVirtual),
+            avail_ext: ByteSize::b(status.ullAvailExtendedVirtual),
         };
         Ok(Memory {
             total: pm.total_phys,
