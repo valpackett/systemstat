@@ -10,6 +10,11 @@ pub use chrono::{DateTime, Utc, NaiveDateTime, TimeZone};
 pub use bytesize::ByteSize;
 use std::ops::Sub;
 
+#[inline(always)]
+pub fn saturating_sub_bytes(l: ByteSize, r: ByteSize) -> ByteSize {
+    ByteSize::b(l.as_u64().saturating_sub(r.as_u64()))
+}
+
 /// A wrapper for a measurement that takes time.
 ///
 /// Time should pass between getting the object and calling .done() on it.

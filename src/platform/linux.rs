@@ -36,7 +36,7 @@ fn time(on_ac: bool, charge_full: i32, charge_now: i32, current_now: i32) -> Dur
     if current_now != 0 {
         if on_ac {
             // Charge time
-            Duration::from_secs((charge_full - charge_now).abs() as u64 * 3600u64 / current_now as u64)
+            Duration::from_secs(charge_full.saturating_sub(charge_now).abs() as u64 * 3600u64 / current_now as u64)
         }
         else {
             // Discharge time
@@ -236,7 +236,7 @@ fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
     let result = unsafe { statvfs(target.as_ptr() as *const c_char, &mut info) };
     match result {
         0 => Ok(Filesystem {
-            files: info.f_files as usize - info.f_ffree as usize,
+            files: (info.f_files as usize).saturating_sub(info.f_ffree as usize),
             files_total: info.f_files as usize,
             files_avail: info.f_favail as usize,
             free: ByteSize::b(info.f_bfree as u64 * info.f_bsize as u64),
