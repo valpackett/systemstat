@@ -113,7 +113,7 @@ named!(
         tag!(":") >>
         value: usize_s >>
         ws!(tag!("kB")) >>
-        ((key, ByteSize::kib(value)))
+        ((key, ByteSize::kib(value as u64)))
     ))
 );
 
@@ -239,9 +239,9 @@ fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
             files: info.f_files as usize - info.f_ffree as usize,
             files_total: info.f_files as usize,
             files_avail: info.f_favail as usize,
-            free: ByteSize::b(info.f_bfree as usize * info.f_bsize as usize),
-            avail: ByteSize::b(info.f_bavail as usize * info.f_bsize as usize),
-            total: ByteSize::b(info.f_blocks as usize * info.f_bsize as usize),
+            free: ByteSize::b(info.f_bfree * info.f_bsize),
+            avail: ByteSize::b(info.f_bavail * info.f_bsize),
+            total: ByteSize::b(info.f_blocks * info.f_bsize),
             name_max: info.f_namemax as usize,
             fs_type: mount.fstype,
             fs_mounted_from: mount.source,
@@ -327,30 +327,30 @@ impl Platform for PlatformImpl {
                 let mut meminfo = BTreeMap::new();
                 let mut info: sysinfo = unsafe { mem::zeroed() };
                 unsafe { sysinfo(&mut info) };
-                let unit = info.mem_unit as usize;
+                let unit = info.mem_unit as u64;
                 meminfo.insert(
                     "MemTotal".to_owned(),
-                    ByteSize::b(info.totalram as usize * unit),
+                    ByteSize::b(info.totalram * unit),
                 );
                 meminfo.insert(
                     "MemFree".to_owned(),
-                    ByteSize::b(info.freeram as usize * unit),
+                    ByteSize::b(info.freeram * unit),
                 );
                 meminfo.insert(
                     "Shmem".to_owned(),
-                    ByteSize::b(info.sharedram as usize * unit),
+                    ByteSize::b(info.sharedram * unit),
                 );
                 meminfo.insert(
                     "Buffers".to_owned(),
-                    ByteSize::b(info.bufferram as usize * unit),
+                    ByteSize::b(info.bufferram * unit),
                 );
                 meminfo.insert(
                     "SwapTotal".to_owned(),
-                    ByteSize::b(info.totalswap as usize * unit),
+                    ByteSize::b(info.totalswap * unit),
                 );
                 meminfo.insert(
                     "SwapFree".to_owned(),
-                    ByteSize::b(info.freeswap as usize * unit),
+                    ByteSize::b(info.freeswap * unit),
                 );
                 Ok(meminfo)
             })
@@ -368,11 +368,13 @@ impl Platform for PlatformImpl {
                         meminfo.get("Cached").map(|x| x.clone()).unwrap_or(
                             ByteSize::b(0),
                         ) +
-                        meminfo.get("SReclaimable").map(|x| x.clone()).unwrap_or(
-                            ByteSize::b(0),
-                        ) -
-                        meminfo.get("Shmem").map(|x| x.clone()).unwrap_or(
-                            ByteSize::b(0),
+                        ByteSize::b(
+                            meminfo.get("SReclaimable").map(|x| x.clone()).unwrap_or(
+                                ByteSize::b(0),
+                            ).as_u64() -
+                            meminfo.get("Shmem").map(|x| x.clone()).unwrap_or(
+                                ByteSize::b(0),
+                            ).as_u64()
                         ),
                     platform_memory: PlatformMemory { meminfo: meminfo },
                 }
