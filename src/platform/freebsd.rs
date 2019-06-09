@@ -88,14 +88,14 @@ impl Platform for PlatformImpl {
         let mut wired: usize = 0; sysctl!(V_WIRE_COUNT, &mut wired, mem::size_of::<usize>());
         let mut cache: usize = 0; sysctl!(V_CACHE_COUNT, &mut cache, mem::size_of::<usize>(), false);
         let mut free: usize = 0; sysctl!(V_FREE_COUNT, &mut free, mem::size_of::<usize>());
-        let arc = ByteSize::b(zfs_arc_size().unwrap_or(0));
+        let arc = ByteSize::b(zfs_arc_size().unwrap_or(0) as u64);
         let pmem = PlatformMemory {
-            active: ByteSize::kib(active << *bsd::PAGESHIFT),
-            inactive: ByteSize::kib(inactive << *bsd::PAGESHIFT),
-            wired: ByteSize::kib(wired << *bsd::PAGESHIFT) - arc,
-            cache: ByteSize::kib(cache << *bsd::PAGESHIFT),
+            active: ByteSize::kib(active << *bsd::PAGESHIFT as u64),
+            inactive: ByteSize::kib(inactive << *bsd::PAGESHIFT as u64),
+            wired: ByteSize::kib(wired << *bsd::PAGESHIFT as u64) - arc,
+            cache: ByteSize::kib(cache << *bsd::PAGESHIFT as u64),
             zfs_arc: arc,
-            free: ByteSize::kib(free << *bsd::PAGESHIFT),
+            free: ByteSize::kib(free << *bsd::PAGESHIFT as u64),
         };
         Ok(Memory {
             total: pmem.active + pmem.inactive + pmem.wired + pmem.cache + arc + pmem.free,
@@ -221,9 +221,9 @@ impl statfs {
             files: self.f_files as usize - self.f_ffree as usize,
             files_total: self.f_files as usize,
             files_avail: self.f_ffree as usize,
-            free: ByteSize::b(self.f_bfree as usize * self.f_bsize as usize),
-            avail: ByteSize::b(self.f_bavail as usize * self.f_bsize as usize),
-            total: ByteSize::b(self.f_blocks as usize * self.f_bsize as usize),
+            free: ByteSize::b(self.f_bfree * self.f_bsize),
+            avail: ByteSize::b(self.f_bavail * self.f_bsize),
+            total: ByteSize::b(self.f_blocks * self.f_bsize),
             name_max: self.f_namemax as usize,
             fs_type: unsafe { ffi::CStr::from_ptr(&self.f_fstypename[0]).to_string_lossy().into_owned() },
             fs_mounted_from: unsafe { ffi::CStr::from_ptr(&self.f_mntfromname[0]).to_string_lossy().into_owned() },
