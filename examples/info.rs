@@ -2,7 +2,7 @@ extern crate systemstat;
 
 use std::thread;
 use std::time::Duration;
-use systemstat::{System, Platform};
+use systemstat::{System, Platform, saturating_sub_bytes};
 
 fn main() {
     let sys = System::new();
@@ -62,7 +62,7 @@ fn main() {
     }
 
     match sys.memory() {
-        Ok(mem) => println!("\nMemory: {} used / {} ({} bytes) total ({:?})", mem.total - mem.free, mem.total, mem.total.as_usize(), mem.platform_memory),
+        Ok(mem) => println!("\nMemory: {} used / {} ({} bytes) total ({:?})", saturating_sub_bytes(mem.total, mem.free), mem.total, mem.total.as_u64(), mem.platform_memory),
         Err(x) => println!("\nMemory: error: {}", x)
     }
 

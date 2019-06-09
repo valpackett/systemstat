@@ -88,14 +88,14 @@ impl Platform for PlatformImpl {
         let mut wired: usize = 0; sysctl!(V_WIRE_COUNT, &mut wired, mem::size_of::<usize>());
         let mut cache: usize = 0; sysctl!(V_CACHE_COUNT, &mut cache, mem::size_of::<usize>(), false);
         let mut free: usize = 0; sysctl!(V_FREE_COUNT, &mut free, mem::size_of::<usize>());
-        let arc = ByteSize::b(zfs_arc_size().unwrap_or(0) as u64);
+        let arc = ByteSize::b(zfs_arc_size().unwrap_or(0));
         let pmem = PlatformMemory {
-            active: ByteSize::kib(active << *bsd::PAGESHIFT as u64),
-            inactive: ByteSize::kib(inactive << *bsd::PAGESHIFT as u64),
-            wired: ByteSize::kib(wired << *bsd::PAGESHIFT as u64) - arc,
-            cache: ByteSize::kib(cache << *bsd::PAGESHIFT as u64),
+            active: ByteSize::kib((active as u64) << *bsd::PAGESHIFT),
+            inactive: ByteSize::kib((inactive as u64) << *bsd::PAGESHIFT),
+            wired: saturating_sub_bytes(ByteSize::kib((wired as u64) << *bsd::PAGESHIFT), arc),
+            cache: ByteSize::kib((cache as u64) << *bsd::PAGESHIFT),
             zfs_arc: arc,
-            free: ByteSize::kib(free << *bsd::PAGESHIFT as u64),
+            free: ByteSize::kib((free as u64) << *bsd::PAGESHIFT),
         };
         Ok(Memory {
             total: pmem.active + pmem.inactive + pmem.wired + pmem.cache + arc + pmem.free,
@@ -176,10 +176,10 @@ fn measure_cpu() -> io::Result<Vec<CpuTime>> {
     Ok(data.into_iter().map(|cpu| cpu.into()).collect())
 }
 
-fn zfs_arc_size() -> io::Result<usize> {
+fn zfs_arc_size() -> io::Result<u64> {
     let mut zfs_arc: usize = 0;
     sysctl!(ZFS_ARC_SIZE, &mut zfs_arc, mem::size_of::<usize>());
-    Ok(zfs_arc)
+    Ok(zfs_arc as u64)
 }
 
 #[repr(C)]
@@ -218,11 +218,11 @@ struct statfs {
 impl statfs {
     fn to_fs(&self) -> Filesystem {
         Filesystem {
-            files: self.f_files as usize - self.f_ffree as usize,
+            files: (self.f_files as usize).saturating_sub(self.f_ffree as usize),
             files_total: self.f_files as usize,
             files_avail: self.f_ffree as usize,
             free: ByteSize::b(self.f_bfree * self.f_bsize),
-            avail: ByteSize::b(self.f_bavail * self.f_bsize),
+            avail: ByteSize::b(self.f_bavail as u64 * self.f_bsize),
             total: ByteSize::b(self.f_blocks * self.f_bsize),
             name_max: self.f_namemax as usize,
             fs_type: unsafe { ffi::CStr::from_ptr(&self.f_fstypename[0]).to_string_lossy().into_owned() },
