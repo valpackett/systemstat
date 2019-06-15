@@ -106,7 +106,7 @@ impl Platform for PlatformImpl {
 
 fn statfs_to_fs(x: &statfs) -> Filesystem {
     Filesystem {
-        files: (x.f_files as usize.saturating_sub(x.f_ffree as usize),
+        files: (x.f_files as usize).saturating_sub(x.f_ffree as usize),
         files_total: x.f_files as usize,
         files_avail: x.f_ffree as usize,
         free: ByteSize::b(x.f_bfree * x.f_bsize as u64),
