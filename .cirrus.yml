@@ -1,0 +1,12 @@
+test_task:
+  freebsd_instance:
+    matrix:
+      - image: freebsd-12-0-release-amd64
+      - image: freebsd-11-3-release-amd64
+  cargo_cache:
+    folder: $CARGO_HOME/registry
+    fingerprint_script: cat Cargo.lock
+  before_cache_script: rm -rf $CARGO_HOME/registry/index
+  install_script: pkg install -y rust
+  build_script: cargo build --verbose
+  test_script: cargo run --verbose --example info
