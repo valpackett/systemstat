@@ -40,6 +40,6 @@ jobs:
     - name: Get Rust
       run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup && sh ./rustup -y
     - name: Build
-      run: cargo build --verbose
+      run: source ~/.cargo/env; cargo build --verbose
     - name: Run example
-      run: cargo run --verbose --example info
+      run: source ~/.cargo/env; cargo run --verbose --example info
