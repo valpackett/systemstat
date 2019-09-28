@@ -359,22 +359,23 @@ impl Platform for PlatformImpl {
                     total: meminfo.get("MemTotal").map(|x| x.clone()).unwrap_or(
                         ByteSize::b(0),
                     ),
-                    free: meminfo.get("MemFree").map(|x| x.clone()).unwrap_or(
-                        ByteSize::b(0),
-                    ) +
-                        meminfo.get("Buffers").map(|x| x.clone()).unwrap_or(
-                            ByteSize::b(0),
-                        ) +
-                        meminfo.get("Cached").map(|x| x.clone()).unwrap_or(
-                            ByteSize::b(0),
-                        ) +
-                        ByteSize::b(
+                    free:
+                        saturating_sub_bytes(
+                            meminfo.get("MemFree").map(|x| x.clone()).unwrap_or(
+                                ByteSize::b(0),
+                            ) +
+                            meminfo.get("Buffers").map(|x| x.clone()).unwrap_or(
+                                ByteSize::b(0),
+                            ) +
+                            meminfo.get("Cached").map(|x| x.clone()).unwrap_or(
+                                ByteSize::b(0),
+                            ) +
                             meminfo.get("SReclaimable").map(|x| x.clone()).unwrap_or(
                                 ByteSize::b(0),
-                            ).as_u64() -
+                            ) ,
                             meminfo.get("Shmem").map(|x| x.clone()).unwrap_or(
                                 ByteSize::b(0),
-                            ).as_u64()
+                            )
                         ),
                     platform_memory: PlatformMemory { meminfo: meminfo },
                 }
