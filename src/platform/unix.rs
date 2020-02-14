@@ -24,7 +24,7 @@ pub fn networks() -> io::Result<BTreeMap<String, Network>> {
     while ifap != ptr::null_mut() {
         let ifa = unsafe { (*ifap) };
         let name = unsafe { ffi::CStr::from_ptr(ifa.ifa_name).to_string_lossy().into_owned() };
-        let mut entry = result.entry(name.clone()).or_insert(Network {
+        let entry = result.entry(name.clone()).or_insert(Network {
             name: name,
             addrs: Vec::new(),
         });
