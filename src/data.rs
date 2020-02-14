@@ -19,12 +19,12 @@ pub fn saturating_sub_bytes(l: ByteSize, r: ByteSize) -> ByteSize {
 ///
 /// Time should pass between getting the object and calling .done() on it.
 pub struct DelayedMeasurement<T> {
-    res: Box<Fn() -> io::Result<T> + Send>,
+    res: Box<dyn Fn() -> io::Result<T> + Send>,
 }
 
 impl<T> DelayedMeasurement<T> {
     #[inline(always)]
-    pub fn new(f: Box<Fn() -> io::Result<T> + Send>) -> DelayedMeasurement<T> {
+    pub fn new(f: Box<dyn Fn() -> io::Result<T> + Send>) -> DelayedMeasurement<T> {
         DelayedMeasurement { res: f }
     }
 

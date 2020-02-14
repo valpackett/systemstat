@@ -18,8 +18,8 @@ fn read_file(path: &str) -> io::Result<String> {
 }
 
 fn value_from_file<T: str::FromStr>(path: &str) -> io::Result<T> {
-    try!(read_file(path))
-        .trim_right_matches("\n")
+    read_file(path)?
+        .trim_end_matches("\n")
         .parse()
         .and_then(|n| Ok(n))
         .or_else(|_| {
@@ -47,7 +47,7 @@ fn time(on_ac: bool, charge_full: i32, charge_now: i32, current_now: i32) -> Dur
     }
 }
 
-/// Parse an unsigned integer out of a string, surrounded by whitespace
+// Parse an unsigned integer out of a string, surrounded by whitespace
 named!(
     usize_s<usize>,
     ws!(map_res!(
@@ -56,10 +56,10 @@ named!(
     ))
 );
 
-/// Parse `cpuX`, where X is a number
+// Parse `cpuX`, where X is a number
 named!(proc_stat_cpu_prefix<()>, do_parse!(tag!("cpu") >> digit >> ()));
 
-/// Parse a `/proc/stat` CPU line into a `CpuTime` struct
+// Parse a `/proc/stat` CPU line into a `CpuTime` struct
 named!(
     proc_stat_cpu_time<CpuTime>,
     do_parse!(
@@ -81,10 +81,10 @@ named!(
     )
 );
 
-/// Parse the top CPU load aggregate line of `/proc/stat`
+// Parse the top CPU load aggregate line of `/proc/stat`
 named!(proc_stat_cpu_aggregate<()>, do_parse!(tag!("cpu") >> space >> ()));
 
-/// Parse `/proc/stat` to extract per-CPU loads
+// Parse `/proc/stat` to extract per-CPU loads
 named!(
     proc_stat_cpu_times<Vec<CpuTime>>,
     do_parse!(
@@ -105,7 +105,7 @@ fn cpu_time() -> io::Result<Vec<CpuTime>> {
     })
 }
 
-/// Parse a `/proc/meminfo` line into (key, ByteSize)
+// Parse a `/proc/meminfo` line into (key, ByteSize)
 named!(
     proc_meminfo_line<(String, ByteSize)>,
     complete!(do_parse!(
@@ -117,13 +117,13 @@ named!(
     ))
 );
 
-/// Optionally parse a `/proc/meminfo` line`
+// Optionally parse a `/proc/meminfo` line`
 named!(
     proc_meminfo_line_opt<Option<(String, ByteSize)>>,
     opt!(proc_meminfo_line)
 );
 
-/// Parse `/proc/meminfo` into a hashmap
+// Parse `/proc/meminfo` into a hashmap
 named!(
     proc_meminfo<BTreeMap<String, ByteSize>>,
     fold_many0!(
@@ -147,7 +147,7 @@ fn memory_stats() -> io::Result<BTreeMap<String, ByteSize>> {
     })
 }
 
-/// Parse a single word
+// Parse a single word
 named!(word_s<String>, flat_map!(
     map_res!(take_till!(is_space), str::from_utf8),
     parse_to!(String)
@@ -160,7 +160,7 @@ struct ProcMountsData {
     fstype: String,
 }
 
-/// Parse a `/proc/mounts` line to get a mountpoint
+// Parse a `/proc/mounts` line to get a mountpoint
 named!(
     proc_mounts_line<ProcMountsData>,
     ws!(do_parse!(
@@ -175,7 +175,7 @@ named!(
     ))
 );
 
-/// Parse `/proc/mounts` to get a list of mountpoints
+// Parse `/proc/mounts` to get a list of mountpoints
 named!(
     proc_mounts<Vec<ProcMountsData>>,
     many1!(ws!(flat_map!(not_line_ending, proc_mounts_line)))
@@ -188,7 +188,7 @@ struct ProcNetSockStat {
     udp_in_use: usize,
 }
 
-/// Parse `/proc/net/sockstat` to get socket statistics
+// Parse `/proc/net/sockstat` to get socket statistics
 named!(
     proc_net_sockstat<ProcNetSockStat>,
     ws!(do_parse!(
@@ -214,7 +214,7 @@ struct ProcNetSockStat6 {
     udp_in_use: usize,
 }
 
-/// Parse `/proc/net/sockstat6` to get socket statistics
+// Parse `/proc/net/sockstat6` to get socket statistics
 named!(
     proc_net_sockstat6<ProcNetSockStat6>,
     ws!(do_parse!(
@@ -251,7 +251,7 @@ fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
     }
 }
 
-/// Parse a line of `/proc/diskstats`
+// Parse a line of `/proc/diskstats`
 named!(
     proc_diskstats_line<BlockDeviceStats>,
     ws!(do_parse!(
@@ -286,7 +286,7 @@ named!(
     ))
 );
 
-/// Parse `/proc/diskstats` to get a Vec<BlockDeviceStats>
+// Parse `/proc/diskstats` to get a Vec<BlockDeviceStats>
 named!(proc_diskstats<Vec<BlockDeviceStats>>,
        many0!(ws!(flat_map!(not_line_ending, proc_diskstats_line)))
 );
@@ -403,7 +403,7 @@ impl Platform for PlatformImpl {
 
     fn battery_life(&self) -> io::Result<BatteryLife> {
         let dir = "/sys/class/power_supply";
-        let entries = try!(fs::read_dir(&dir));
+        let entries = fs::read_dir(&dir)?;
         let mut full = 0;
         let mut now = 0;
         let mut current = 0;
@@ -411,18 +411,12 @@ impl Platform for PlatformImpl {
             let p = e.unwrap().path();
             let s = p.to_str().unwrap();
             if value_from_file::<String>(&(s.to_string() + "/type")).map(|t| t == "Battery").unwrap_or(false) {
-                full += try!(
-                    value_from_file::<i32>(&(s.to_string() + "/energy_full"))
-                        .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_full")))
-                );
-                now += try!(
-                    value_from_file::<i32>(&(s.to_string() + "/energy_now"))
-                        .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_now")))
-                );
-                current += try!(
-                    value_from_file::<i32>(&(s.to_string() + "/power_now"))
-                        .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/current_now")))
-                );
+                full += value_from_file::<i32>(&(s.to_string() + "/energy_full"))
+                        .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_full")))?;
+                now += value_from_file::<i32>(&(s.to_string() + "/energy_now"))
+                        .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_now")))?;
+                current += value_from_file::<i32>(&(s.to_string() + "/power_now"))
+                        .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/current_now")))?;
             }
         }
         if full != 0 {
@@ -442,13 +436,13 @@ impl Platform for PlatformImpl {
 
     fn on_ac_power(&self) -> io::Result<bool> {
         let dir = "/sys/class/power_supply";
-        let entries = try!(fs::read_dir(&dir));
+        let entries = fs::read_dir(&dir)?;
         let mut on_ac = false;
         for e in entries {
             let p = e.unwrap().path();
             let s = p.to_str().unwrap();
             if value_from_file::<String>(&(s.to_string() + "/type")).map(|t| t == "Mains").unwrap_or(false) {
-                on_ac |= try!(value_from_file::<i32>(&(s.to_string() + "/online")).map(|v| v == 1))
+                on_ac |= value_from_file::<i32>(&(s.to_string() + "/online")).map(|v| v == 1)?
             }
         }
         Ok(on_ac)
@@ -487,12 +481,11 @@ impl Platform for PlatformImpl {
 
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
         let mut result: BTreeMap<String, BlockDeviceStats> = BTreeMap::new();
-        let stats: Vec<BlockDeviceStats> = try!(read_file("/proc/diskstats")
+        let stats: Vec<BlockDeviceStats> = read_file("/proc/diskstats")
             .and_then(|data| {
                 proc_diskstats(data.as_bytes()).to_result()
                     .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
-            })
-        );
+            })?;
 
         for blkstats in stats {
             result.entry(blkstats.name.clone()).or_insert(blkstats);
@@ -508,12 +501,12 @@ impl Platform for PlatformImpl {
         let path_root: String = ("/sys/class/net/".to_string() + interface) + "/statistics/";
         let stats_file = |file: &str| (&path_root).to_string() + file;
 
-        let rx_bytes: u64 = try!(value_from_file::<u64>(&stats_file("rx_bytes")));
-        let tx_bytes: u64 = try!(value_from_file::<u64>(&stats_file("tx_bytes")));
-        let rx_packets: u64 = try!(value_from_file::<u64>(&stats_file("rx_packets")));
-        let tx_packets: u64 = try!(value_from_file::<u64>(&stats_file("tx_packets")));
-        let rx_errors: u64 = try!(value_from_file::<u64>(&stats_file("rx_errors")));
-        let tx_errors: u64 = try!(value_from_file::<u64>(&stats_file("tx_errors")));
+        let rx_bytes: u64 = value_from_file::<u64>(&stats_file("rx_bytes"))?;
+        let tx_bytes: u64 = value_from_file::<u64>(&stats_file("tx_bytes"))?;
+        let rx_packets: u64 = value_from_file::<u64>(&stats_file("rx_packets"))?;
+        let tx_packets: u64 = value_from_file::<u64>(&stats_file("tx_packets"))?;
+        let rx_errors: u64 = value_from_file::<u64>(&stats_file("rx_errors"))?;
+        let tx_errors: u64 = value_from_file::<u64>(&stats_file("tx_errors"))?;
 
         Ok(NetworkStats {
             rx_bytes: ByteSize::b(rx_bytes),
@@ -537,21 +530,19 @@ impl Platform for PlatformImpl {
 
     fn socket_stats(&self) -> io::Result<SocketStats> {
         let sockstats: ProcNetSockStat =
-            try!(read_file("/proc/net/sockstat")
-                 .and_then(|data| {
-                     proc_net_sockstat(data.as_bytes()).to_result().map_err(|err| {
-                         io::Error::new(io::ErrorKind::InvalidData, err.to_string())
-                     })
-                 })
-            );
+            read_file("/proc/net/sockstat")
+                .and_then(|data| {
+                    proc_net_sockstat(data.as_bytes()).to_result().map_err(|err| {
+                        io::Error::new(io::ErrorKind::InvalidData, err.to_string())
+                    })
+                })?;
         let sockstats6: ProcNetSockStat6 =
-            try!(read_file("/proc/net/sockstat6")
-                 .and_then(|data| {
-                     proc_net_sockstat6(data.as_bytes()).to_result().map_err(|err| {
-                         io::Error::new(io::ErrorKind::InvalidData, err.to_string())
-                     })
-                 })
-            );
+            read_file("/proc/net/sockstat6")
+                .and_then(|data| {
+                    proc_net_sockstat6(data.as_bytes()).to_result().map_err(|err| {
+                        io::Error::new(io::ErrorKind::InvalidData, err.to_string())
+                    })
+                })?;
         let result: SocketStats = SocketStats {
             tcp_sockets_in_use: sockstats.tcp_in_use,
             tcp_sockets_orphaned: sockstats.tcp_orphaned,
