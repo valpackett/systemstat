@@ -7,6 +7,7 @@ extern crate libc;
 extern crate time;
 extern crate chrono;
 extern crate bytesize;
+#[macro_use]
 extern crate lazy_static;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 #[macro_use]
