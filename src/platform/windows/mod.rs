@@ -1,6 +1,19 @@
 use winapi::ctypes::c_char;
 use winapi::shared::minwindef::*;
+use winapi::shared::winerror::ERROR_SUCCESS;
 use winapi::um::{sysinfoapi, winbase};
+use winapi::um::pdh::{
+    PDH_FMT_COUNTERVALUE_ITEM_A,
+    PDH_FMT_DOUBLE,
+    PDH_HCOUNTER,
+    PDH_HQUERY,
+    PDH_FMT_NOCAP100,
+    PdhAddEnglishCounterA,
+    PdhCloseQuery, 
+    PdhCollectQueryData, 
+    PdhGetFormattedCounterArrayA,
+    PdhOpenQueryA, 
+};
 
 mod disk;
 mod network_interfaces;
@@ -49,7 +62,168 @@ impl Platform for PlatformImpl {
     }
 
     fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        const PDH_MORE_DATA: u32 = 0x800007D2;
+
+        struct QueryHandle(PDH_HQUERY);
+
+        // Pdh is supposedly synchronized internally with a mutex
+        unsafe impl Send for QueryHandle {}
+        unsafe impl Sync for QueryHandle {}
+
+        impl Drop for QueryHandle {
+            fn drop(&mut self){
+                unsafe {
+                    PdhCloseQuery(self.0);
+                }
+            }
+        }
+
+        struct CounterHandle(PDH_HCOUNTER);
+
+        unsafe impl Send for CounterHandle {}
+        unsafe impl Sync for CounterHandle {}
+
+        struct PerformanceCounter {
+            query: QueryHandle,
+            counter: CounterHandle,
+        }
+
+        impl PerformanceCounter {
+            pub fn new(key: &CStr) -> io::Result<Self> {
+                let mut query = std::ptr::null_mut();
+                let status = unsafe { 
+                    PdhOpenQueryA(std::ptr::null(), 0, &mut query)
+                };
+
+                if status as u32 != ERROR_SUCCESS {
+                    return Err(io::Error::from_raw_os_error(status));
+                }
+
+                let query = QueryHandle(query);
+
+                let mut counter = std::ptr::null_mut();
+                let status = unsafe {
+                    PdhAddEnglishCounterA(query.0, key.as_ptr(), 0, &mut counter)
+                };
+
+                if status as u32 != ERROR_SUCCESS {
+                    return Err(io::Error::from_raw_os_error(status));
+                }
+
+                let counter = CounterHandle(counter);
+
+                let status = unsafe {
+                    PdhCollectQueryData(query.0)
+                };
+
+                if status as u32 != ERROR_SUCCESS {
+                    return Err(io::Error::from_raw_os_error(status));
+                }
+
+                Ok(Self {
+                    query,
+                    counter,
+                })
+            }
+
+            fn next_value(&self) -> io::Result<Vec<PDH_FMT_COUNTERVALUE_ITEM_A>> {
+                let status = unsafe {
+                    PdhCollectQueryData(self.query.0)
+                };
+
+                if status as u32 != ERROR_SUCCESS {
+                    return Err(io::Error::from_raw_os_error(status));
+                }
+
+                let mut buffer_size = 0;
+                let mut item_count = 0;
+                let status = unsafe {
+                    PdhGetFormattedCounterArrayA(self.counter.0, PDH_FMT_DOUBLE | PDH_FMT_NOCAP100, &mut buffer_size, &mut item_count, std::ptr::null_mut())
+                };
+
+                match status as u32 {
+                    PDH_MORE_DATA => {},
+                    ERROR_SUCCESS => {
+                        return Ok(Vec::new());
+                    }
+                    _ => {
+                        return Err(io::Error::from_raw_os_error(status));
+                    }
+                }
+
+                let mut items = Vec::new();
+                items.reserve(item_count as usize * std::mem::size_of::<PDH_FMT_COUNTERVALUE_ITEM_A>()); 
+                let status = unsafe {
+                    PdhGetFormattedCounterArrayA(self.counter.0, PDH_FMT_DOUBLE, &mut buffer_size, &mut item_count, items.as_mut_ptr())
+                };
+
+                if status as u32 != ERROR_SUCCESS {
+                    return Err(io::Error::from_raw_os_error(status));
+                } 
+                
+                unsafe {
+                    items.set_len(item_count as usize);
+                }
+
+                Ok(items)
+            }
+        }
+
+        let user_counter = PerformanceCounter::new(CStr::from_bytes_with_nul("\\Processor(*)\\% User Time\0".as_bytes()).unwrap())?;
+        let idle_counter = PerformanceCounter::new(CStr::from_bytes_with_nul("\\Processor(*)\\% Idle Time\0".as_bytes()).unwrap())?;
+        let system_counter = PerformanceCounter::new(CStr::from_bytes_with_nul("\\Processor(*)\\% Privileged Time\0".as_bytes()).unwrap())?;
+        let interrupt_counter = PerformanceCounter::new(CStr::from_bytes_with_nul("\\Processor(*)\\% Interrupt Time\0".as_bytes()).unwrap())?;
+        
+        return Ok(DelayedMeasurement::new(Box::new(move || {
+            let user = user_counter.next_value()?;
+            let idle = idle_counter.next_value()?;
+            let system = system_counter.next_value()?;
+            let interrupt = interrupt_counter.next_value()?;
+
+            let count = user.iter().filter(|item| unsafe { CStr::from_ptr(item.szName).to_string_lossy() } != "_Total").count();
+
+            let mut ret = vec![
+                CPULoad {
+                    user: 0.0,
+                    nice: 0.0,
+                    system: 0.0,
+                    interrupt: 0.0,
+                    idle: 0.0,
+                    platform: PlatformCpuLoad {},
+                }; 
+                count
+            ];
+
+            for item in user {
+                let name = unsafe { CStr::from_ptr(item.szName).to_string_lossy() };
+                if let Ok(n) = name.parse::<usize>(){
+                    ret[n].user = unsafe { (item.FmtValue.u.doubleValue().clone() / 100.0) as f32 };
+                }
+            }
+
+            for item in idle {
+                let name = unsafe { CStr::from_ptr(item.szName).to_string_lossy() };
+                if let Ok(n) = name.parse::<usize>(){
+                    ret[n].idle = unsafe { (item.FmtValue.u.doubleValue().clone() / 100.0) as f32 };
+                }
+            }
+
+            for item in system {
+                let name = unsafe { CStr::from_ptr(item.szName).to_string_lossy() };
+                if let Ok(n) = name.parse::<usize>(){
+                    ret[n].system = unsafe { (item.FmtValue.u.doubleValue().clone() / 100.0) as f32 };
+                }
+            }
+
+            for item in interrupt {
+                let name = unsafe { CStr::from_ptr(item.szName).to_string_lossy() };
+                if let Ok(n) = name.parse::<usize>(){
+                    ret[n].interrupt = unsafe { (item.FmtValue.u.doubleValue().clone() / 100.0) as f32 };
+                }
+            }
+
+            Ok(ret)
+        }))); 
     }
 
     fn load_average(&self) -> io::Result<LoadAverage> {
