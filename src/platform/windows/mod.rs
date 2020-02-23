@@ -33,7 +33,7 @@ fn u16_array_to_string(p: *const u16) -> String {
             return String::new();
         }
         let mut amt = 0usize;
-        while !p.offset(amt as isize).is_null() && *p.offset(amt as isize) != 0u16 {
+        while !p.add(amt).is_null() && *p.add(amt) != 0u16 {
             amt += 1;
         }
         let u16s = from_raw_parts(p, amt);
@@ -62,7 +62,7 @@ impl Platform for PlatformImpl {
     }
 
     fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>> {
-        const PDH_MORE_DATA: u32 = 0x800007D2;
+        const PDH_MORE_DATA: u32 = 0x8000_07D2;
 
         struct QueryHandle(PDH_HQUERY);
 
@@ -169,12 +169,12 @@ impl Platform for PlatformImpl {
             }
         }
 
-        let user_counter = PerformanceCounter::new(CStr::from_bytes_with_nul("\\Processor(*)\\% User Time\0".as_bytes()).unwrap())?;
-        let idle_counter = PerformanceCounter::new(CStr::from_bytes_with_nul("\\Processor(*)\\% Idle Time\0".as_bytes()).unwrap())?;
-        let system_counter = PerformanceCounter::new(CStr::from_bytes_with_nul("\\Processor(*)\\% Privileged Time\0".as_bytes()).unwrap())?;
-        let interrupt_counter = PerformanceCounter::new(CStr::from_bytes_with_nul("\\Processor(*)\\% Interrupt Time\0".as_bytes()).unwrap())?;
+        let user_counter = PerformanceCounter::new(CStr::from_bytes_with_nul(b"\\Processor(*)\\% User Time\0").unwrap())?;
+        let idle_counter = PerformanceCounter::new(CStr::from_bytes_with_nul(b"\\Processor(*)\\% Idle Time\0").unwrap())?;
+        let system_counter = PerformanceCounter::new(CStr::from_bytes_with_nul(b"\\Processor(*)\\% Privileged Time\0").unwrap())?;
+        let interrupt_counter = PerformanceCounter::new(CStr::from_bytes_with_nul(b"\\Processor(*)\\% Interrupt Time\0").unwrap())?;
         
-        return Ok(DelayedMeasurement::new(Box::new(move || {
+        Ok(DelayedMeasurement::new(Box::new(move || {
             let user = user_counter.next_value()?;
             let idle = idle_counter.next_value()?;
             let system = system_counter.next_value()?;
@@ -197,33 +197,33 @@ impl Platform for PlatformImpl {
             for item in user {
                 let name = unsafe { CStr::from_ptr(item.szName).to_string_lossy() };
                 if let Ok(n) = name.parse::<usize>(){
-                    ret[n].user = unsafe { (item.FmtValue.u.doubleValue().clone() / 100.0) as f32 };
+                    ret[n].user = unsafe { (*item.FmtValue.u.doubleValue() / 100.0) as f32 };
                 }
             }
 
             for item in idle {
                 let name = unsafe { CStr::from_ptr(item.szName).to_string_lossy() };
                 if let Ok(n) = name.parse::<usize>(){
-                    ret[n].idle = unsafe { (item.FmtValue.u.doubleValue().clone() / 100.0) as f32 };
+                    ret[n].idle = unsafe { (*item.FmtValue.u.doubleValue() / 100.0) as f32 };
                 }
             }
 
             for item in system {
                 let name = unsafe { CStr::from_ptr(item.szName).to_string_lossy() };
                 if let Ok(n) = name.parse::<usize>(){
-                    ret[n].system = unsafe { (item.FmtValue.u.doubleValue().clone() / 100.0) as f32 };
+                    ret[n].system = unsafe { (*item.FmtValue.u.doubleValue() / 100.0) as f32 };
                 }
             }
 
             for item in interrupt {
                 let name = unsafe { CStr::from_ptr(item.szName).to_string_lossy() };
                 if let Ok(n) = name.parse::<usize>(){
-                    ret[n].interrupt = unsafe { (item.FmtValue.u.doubleValue().clone() / 100.0) as f32 };
+                    ret[n].interrupt = unsafe { (*item.FmtValue.u.doubleValue() / 100.0) as f32 };
                 }
             }
 
             Ok(ret)
-        }))); 
+        })))
     }
 
     fn load_average(&self) -> io::Result<LoadAverage> {
@@ -292,7 +292,7 @@ impl Platform for PlatformImpl {
         disk::drives()
     }
 
-    fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem> {
+    fn mount_at<P: AsRef<path::Path>>(&self, _path: P) -> io::Result<Filesystem> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 
@@ -304,7 +304,7 @@ impl Platform for PlatformImpl {
         network_interfaces::get()
     }
 
-    fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
+    fn network_stats(&self, _interface: &str) -> io::Result<NetworkStats> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 

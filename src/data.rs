@@ -55,7 +55,7 @@ impl PlatformCpuLoad {
 
     #[cfg(not(target_os="linux"))]
     #[inline(always)]
-    pub fn avg_add(self, rhs: &Self) -> Self {
+    pub fn avg_add(self, _rhs: &Self) -> Self {
         PlatformCpuLoad {}
     }
 
@@ -83,7 +83,7 @@ impl PlatformCpuLoad {
 
     #[cfg(not(target_os="linux"))]
     #[inline(always)]
-    pub fn from(input: f32) -> Self {
+    pub fn from(_input: f32) -> Self {
         PlatformCpuLoad {}
     }
 }
