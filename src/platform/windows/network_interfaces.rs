@@ -1,4 +1,4 @@
-use libc::{c_void, free, malloc, size_t, uint8_t};
+use libc::{c_void, free, malloc, size_t};
 use winapi::ctypes::*;
 use winapi::shared::minwindef::*;
 use winapi::shared::winerror::{ERROR_BUFFER_OVERFLOW, ERROR_SUCCESS};
@@ -56,7 +56,7 @@ struct IpAdapterUnicastAddress {
     valid_lifetime: ULONG,
     preferred_lifetime: ULONG,
     lease_lifetime: ULONG,
-    on_link_prefix_length: uint8_t,
+    on_link_prefix_length: u8,
 }
 
 const MAX_ADAPTER_ADDRESS_LENGTH: usize = 8;
@@ -168,7 +168,7 @@ pub fn get() -> io::Result<BTreeMap<String, Network>> {
             }
             let network = Network {
                 name: friendly_name,
-                addrs: addrs,
+                addrs,
             };
             map.insert(adapter_name, network);
 
@@ -183,21 +183,21 @@ pub fn get() -> io::Result<BTreeMap<String, Network>> {
     Ok(map)
 }
 
-fn physical_address_to_string(array: &[u8; 8], length: DWORD) -> String {
+fn _physical_address_to_string(array: [u8; 8], length: DWORD) -> String {
     let mut bytes = Vec::with_capacity(length as usize);
-    for idx in 0..length as usize {
+    for (idx, b) in array.iter().enumerate().take(length as usize) {
         if idx == 0 {
-            write!(&mut bytes, "{:02X}", array[idx]).unwrap();
+            write!(&mut bytes, "{:02X}", b).unwrap();
         } else {
-            write!(&mut bytes, "-{:02X}", array[idx]).unwrap();
+            write!(&mut bytes, "-{:02X}", b).unwrap();
         }
     }
     String::from_utf8_lossy(&bytes[..]).into_owned()
 }
 
 // Thanks , copy from unix.rs and some modify
-fn parse_addr_and_netmask(aptr: *const SOCKADDR, net_bits: uint8_t) -> NetworkAddrs {
-    if aptr == ptr::null() {
+fn parse_addr_and_netmask(aptr: *const SOCKADDR, net_bits: u8) -> NetworkAddrs {
+    if aptr.is_null() {
         return NetworkAddrs {
             addr: IpAddr::Empty,
             netmask: IpAddr::Empty,
@@ -221,9 +221,10 @@ fn parse_addr_and_netmask(aptr: *const SOCKADDR, net_bits: uint8_t) -> NetworkAd
         }
         AF_INET6 => {
             // This is horrible.
-            let addr6: *const SOCKADDR_IN6_LH = unsafe { mem::transmute(aptr) };
-            let mut a: [u8; 16] = unsafe { *(*addr6).sin6_addr.u.Byte() };
-            &mut a[..].reverse();
+            #[allow(clippy::cast_ptr_alignment)]
+            let addr6: *const SOCKADDR_IN6_LH = aptr as *const SOCKADDR_IN6_LH;
+            let mut a: [u8; 16] = unsafe { *std::ptr::read_unaligned(addr6).sin6_addr.u.Byte() };
+            a[..].reverse();
             let a: [u16; 8] = unsafe { mem::transmute(a) };
             let addr = IpAddr::V6(Ipv6Addr::new(
                 a[7],

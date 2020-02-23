@@ -7,7 +7,8 @@ use super::{last_os_error, u16_array_to_string};
 use data::*;
 
 use std::char::{decode_utf16, REPLACEMENT_CHARACTER};
-use std::{io, mem, ptr};
+use std::{io, ptr};
+use std::mem::MaybeUninit;
 
 pub fn drives() -> io::Result<Vec<Filesystem>> {
     let logical_drives = unsafe { GetLogicalDriveStringsW(0, ptr::null_mut()) };
@@ -36,9 +37,8 @@ pub fn drives() -> io::Result<Vec<Filesystem>> {
 
         let (max, fs, tag) = get_volume_information(us)?;
 
-        let tmp;
-        if max == 0 {
-            tmp = Filesystem {
+        let tmp = if max == 0 {
+            Filesystem {
                 name_max: max as _,
                 fs_type: fs,
                 fs_mounted_from: tag,
@@ -49,11 +49,11 @@ pub fn drives() -> io::Result<Vec<Filesystem>> {
                 files: 0,
                 files_total: 0,
                 files_avail: 0
-            };
+            }
         } else {
             let (total, avail, free) = get_disk_space_ext(us)?;
 
-            tmp = Filesystem {
+            Filesystem {
                 name_max: max as _,
                 fs_type: fs,
                 fs_mounted_from: tag,
@@ -64,8 +64,8 @@ pub fn drives() -> io::Result<Vec<Filesystem>> {
                 files: 0, // don't find..
                 files_total: 0,
                 files_avail: 0,
-            };
-        }
+            }
+        };
 
         vec.push(tmp);
     }
@@ -130,20 +130,24 @@ fn get_volume_information(name: &[u16]) -> io::Result<(c_ulong, String, String)>
 fn get_disk_space_ext(name: &[u16]) -> io::Result<(u64, u64, u64)> {
     let p_name = name.as_ptr();
 
-    let mut avail: ULARGE_INTEGER = unsafe { mem::uninitialized() };
-    let mut total: ULARGE_INTEGER = unsafe { mem::uninitialized() };
-    let mut free: ULARGE_INTEGER = unsafe { mem::uninitialized() };
+    let mut avail: MaybeUninit<ULARGE_INTEGER> = MaybeUninit::uninit();
+    let mut total: MaybeUninit<ULARGE_INTEGER> = MaybeUninit::uninit();
+    let mut free: MaybeUninit<ULARGE_INTEGER> = MaybeUninit::uninit();
 
     if FALSE == unsafe {
         GetDiskFreeSpaceExW(
             p_name,
-            &mut avail as *mut _,
-            &mut total as *mut _,
-            &mut free as *mut _,
+            avail.as_mut_ptr(),
+            total.as_mut_ptr(),
+            free.as_mut_ptr(),
         )
     } {
         last_os_error()?;
     }
+
+    let avail = unsafe { avail.assume_init() };
+    let total = unsafe { total.assume_init() };
+    let free = unsafe { free.assume_init() };
 
     unsafe { Ok((*total.QuadPart(), *avail.QuadPart(), *free.QuadPart())) }
 }
