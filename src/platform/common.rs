@@ -3,6 +3,8 @@ use time;
 use data::*;
 
 /// The Platform trait declares all the functions for getting system information.
+///
+/// NOTE: any impl MUST override one of `uptime` or `boot_time`.
 pub trait Platform {
     fn new() -> Self;
 
