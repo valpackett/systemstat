@@ -10,7 +10,6 @@ extern crate bytesize;
 #[cfg_attr(any(target_os = "freebsd", target_os = "openbsd", target_os = "macos"), macro_use)]
 extern crate lazy_static;
 #[cfg(any(target_os = "linux", target_os = "android"))]
-#[macro_use]
 extern crate nom;
 
 pub mod platform;
