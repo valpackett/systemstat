@@ -6,7 +6,7 @@ use libc::{c_char, c_long, c_schar, c_uint, c_ulong, c_ushort};
 use nom::bytes::complete::{tag, take_till, take_until};
 use nom::character::complete::{digit1, multispace0, not_line_ending, space1};
 use nom::character::is_space;
-use nom::combinator::{complete, flat_map, map, map_res, opt};
+use nom::combinator::{complete, map, map_res, opt};
 use nom::error::ParseError;
 use nom::multi::{fold_many0, many0, many1};
 use nom::sequence::{delimited, preceded, tuple};
@@ -105,7 +105,11 @@ fn proc_stat_cpu_aggregate(input: &str) -> IResult<&str, ()> {
 fn proc_stat_cpu_times(input: &str) -> IResult<&str, Vec<CpuTime>> {
     preceded(
         map(ws(not_line_ending), proc_stat_cpu_aggregate),
-        many1(flat_map(ws(not_line_ending), |_| proc_stat_cpu_time)),
+        many1(map_res(ws(not_line_ending), |input| {
+            proc_stat_cpu_time(input)
+                .map(|(_, res)| res)
+                .map_err(|_| ())
+        })),
     )(input)
 }
 
@@ -134,7 +138,11 @@ fn proc_meminfo_line_opt(input: &str) -> IResult<&str, Option<(&str, ByteSize)>>
 // Parse `/proc/meminfo` into a hashmap
 fn proc_meminfo(input: &str) -> IResult<&str, BTreeMap<String, ByteSize>> {
     fold_many0(
-        ws(flat_map(not_line_ending, |_| proc_meminfo_line_opt)),
+        ws(map_res(not_line_ending, |input| {
+            proc_meminfo_line_opt(input)
+                .map(|(_, res)| res)
+                .map_err(|_| ())
+        })),
         BTreeMap::new(),
         |mut map: BTreeMap<String, ByteSize>, opt| {
             if let Some((key, val)) = opt {
@@ -345,7 +353,11 @@ fn proc_diskstats_line(input: &str) -> IResult<&str, BlockDeviceStats> {
 
 // Parse `/proc/diskstats` to get a Vec<BlockDeviceStats>
 fn proc_diskstats(input: &str) -> IResult<&str, Vec<BlockDeviceStats>> {
-    many0(ws(flat_map(not_line_ending, |_| proc_diskstats_line)))(input)
+    many0(ws(map_res(not_line_ending, |input| {
+        proc_diskstats_line(input)
+            .map(|(_, res)| res)
+            .map_err(|_| ())
+    })))(input)
 }
 
 pub struct PlatformImpl;
