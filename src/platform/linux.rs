@@ -180,16 +180,60 @@ fn proc_mounts_line(input: &str) -> IResult<&str, ProcMountsData> {
 
 // Parse `/proc/mounts` to get a list of mountpoints
 fn proc_mounts(input: &str) -> IResult<&str, Vec<ProcMountsData>> {
-    many1(flat_map(
-        map_res(ws(not_line_ending), |input| {
-            if input.is_empty() {
-                return Err(());
-            } else {
-                Ok(input)
-            }
-        }),
-        |_| proc_mounts_line,
-    ))(input)
+    many1(map_res(ws(not_line_ending), |input| {
+        if input.is_empty() {
+            return Err(());
+        } else {
+            proc_mounts_line(input).map(|(_, res)| res).map_err(|_| ())
+        }
+    }))(input)
+}
+
+#[test]
+fn test_proc_mounts() {
+    let test_input_1 = r#"/dev/md0 / btrfs rw,noatime,space_cache,subvolid=15192,subvol=/var/lib/docker/btrfs/subvolumes/df6eb8d3ce1a295bcc252e51ba086cb7705a046a79a342b74729f3f738129f04 0 0
+proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
+tmpfs /dev tmpfs rw,nosuid,size=65536k,mode=755,inode64 0 0
+devpts /dev/pts devpts rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=666 0 0
+sysfs /sys sysfs ro,nosuid,nodev,noexec,relatime 0 0
+tmpfs /sys/fs/cgroup tmpfs rw,nosuid,nodev,noexec,relatime,mode=755,inode64 0 0"#;
+    let mounts = proc_mounts(test_input_1).unwrap().1;
+    assert!(mounts.len() == 6);
+    let root = mounts.iter().find(|m| m.target == "/").unwrap();
+    assert!(root.source == "/dev/md0");
+    assert!(root.target == "/");
+    assert!(root.fstype == "btrfs");
+
+    let test_input_2 = r#"proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
+tmpfs /dev tmpfs rw,nosuid,size=65536k,mode=755,inode64 0 0
+devpts /dev/pts devpts rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=666 0 0
+sysfs /sys sysfs ro,nosuid,nodev,noexec,relatime 0 0
+tmpfs /sys/fs/cgroup tmpfs rw,nosuid,nodev,noexec,relatime,mode=755,inode64 0 0
+/dev/md0 / btrfs rw,noatime,space_cache,subvolid=15192,subvol=/var/lib/docker/btrfs/subvolumes/df6eb8d3ce1a295bcc252e51ba086cb7705a046a79a342b74729f3f738129f04 0 0"#;
+    let mounts = proc_mounts(test_input_2).unwrap().1;
+    assert!(mounts.len() == 6);
+    let root = mounts.iter().find(|m| m.target == "/").unwrap();
+    assert!(root.source == "/dev/md0");
+    assert!(root.target == "/");
+    assert!(root.fstype == "btrfs");
+
+    // On some distros, there is a blank line at the end of `/proc/mounts`,
+    // so we test here to make sure we do not crash on that
+    let test_input_3 = r#"proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
+sys /sys sysfs rw,nosuid,nodev,noexec,relatime 0 0
+dev /dev devtmpfs rw,nosuid,relatime,size=16131864k,nr_inodes=4032966,mode=755,inode64 0 0
+run /run tmpfs rw,nosuid,nodev,relatime,mode=755,inode64 0 0
+efivarfs /sys/firmware/efi/efivars efivarfs rw,nosuid,nodev,noexec,relatime 0 0
+/dev/nvme0n1p3 / btrfs rw,noatime,ssd,space_cache,subvolid=5,subvol=/ 0 0
+securityfs /sys/kernel/security securityfs rw,nosuid,nodev,noexec,relatime 0 0
+tmpfs /dev/shm tmpfs rw,nosuid,nodev,inode64 0 0
+"#;
+    let mounts = proc_mounts(test_input_3).unwrap().1;
+    assert!(mounts.len() == 8);
+    let root = mounts.iter().find(|m| m.target == "/").unwrap();
+    assert!(root.source == "/dev/nvme0n1p3");
+    assert!(root.target == "/");
+    assert!(root.fstype == "btrfs");
 }
 
 /// `/proc/net/sockstat` data
