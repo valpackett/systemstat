@@ -254,20 +254,35 @@ struct ProcNetSockStat {
 // Parse `/proc/net/sockstat` to get socket statistics
 fn proc_net_sockstat(input: &str) -> IResult<&str, ProcNetSockStat> {
     map(
-        ws(preceded(
+        preceded(
             not_line_ending,
             tuple((
-                preceded(tag("TCP: inuse"), usize_s),
-                delimited(tag("orphan"), usize_s, not_line_ending),
-                preceded(tag("UDP: inuse"), usize_s),
+                preceded(ws(tag("TCP: inuse")), usize_s),
+                delimited(ws(tag("orphan")), usize_s, not_line_ending),
+                preceded(ws(tag("UDP: inuse")), usize_s),
             )),
-        )),
+        ),
         |(tcp_in_use, tcp_orphaned, udp_in_use)| ProcNetSockStat {
             tcp_in_use: tcp_in_use,
             tcp_orphaned: tcp_orphaned,
             udp_in_use: udp_in_use,
         },
     )(input)
+}
+
+#[test]
+fn test_proc_net_sockstat() {
+    let input = "sockets: used 925
+TCP: inuse 20 orphan 0 tw 12 alloc 23 mem 2
+UDP: inuse 1 mem 2
+UDPLITE: inuse 0
+RAW: inuse 0
+FRAG: inuse 0 memory 0
+";
+    let result = proc_net_sockstat(input).unwrap().1;
+    assert_eq!(result.tcp_in_use, 20);
+    assert_eq!(result.tcp_orphaned, 0);
+    assert_eq!(result.udp_in_use, 1);
 }
 
 /// `/proc/net/sockstat6` data
@@ -288,6 +303,19 @@ fn proc_net_sockstat6(input: &str) -> IResult<&str, ProcNetSockStat6> {
             udp_in_use: udp_in_use,
         },
     )(input)
+}
+
+#[test]
+fn test_proc_net_sockstat6() {
+    let input = "TCP6: inuse 3
+UDP6: inuse 1
+UDPLITE6: inuse 0
+RAW6: inuse 1
+FRAG6: inuse 0 memory 0
+";
+    let result = proc_net_sockstat6(input).unwrap().1;
+    assert_eq!(result.tcp_in_use, 3);
+    assert_eq!(result.udp_in_use, 1);
 }
 
 /// Stat a mountpoint to gather filesystem statistics
