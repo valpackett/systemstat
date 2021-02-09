@@ -1,6 +1,6 @@
 [package]
 name = "systemstat"
-version = "0.1.6"
+version = "0.1.7"
 authors = [ "Greg V <greg@unrelenting.technology>" ]
 keywords = [ "System", "Info" ]
 description = "systemstat"
