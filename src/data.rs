@@ -8,6 +8,7 @@ pub use std::net::{Ipv4Addr, Ipv6Addr};
 pub use std::collections::BTreeMap;
 pub use chrono::{DateTime, Utc, NaiveDateTime, TimeZone};
 pub use bytesize::ByteSize;
+pub use serde::{Serialize, Deserialize};
 use std::ops::Sub;
 
 #[inline(always)]
@@ -39,7 +40,7 @@ impl<T> DelayedMeasurement<T> {
 pub struct PlatformCpuLoad {}
 
 #[cfg(target_os = "linux")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformCpuLoad {
     pub iowait: f32
 }
@@ -88,7 +89,7 @@ impl PlatformCpuLoad {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CPULoad {
     pub user: f32,
     pub nice: f32,
@@ -112,7 +113,7 @@ impl CPULoad {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct CpuTime {
     pub user: usize,
     pub nice: usize,
@@ -163,7 +164,7 @@ impl CpuTime {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoadAverage {
     pub one: f32,
     pub five: f32,
@@ -171,7 +172,7 @@ pub struct LoadAverage {
 }
 
 #[cfg(target_os = "windows")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformMemory {
     pub load: u32,
     pub total_phys: ByteSize,
@@ -184,7 +185,7 @@ pub struct PlatformMemory {
 }
 
 #[cfg(target_os = "freebsd")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformMemory {
     pub active: ByteSize,
     pub inactive: ByteSize,
@@ -195,7 +196,7 @@ pub struct PlatformMemory {
 }
 
 #[cfg(target_os = "openbsd")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformMemory {
     pub active: ByteSize,
     pub inactive: ByteSize,
@@ -206,7 +207,7 @@ pub struct PlatformMemory {
 }
 
 #[cfg(target_os = "macos")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformMemory {
     pub active: ByteSize,
     pub inactive: ByteSize,
@@ -216,25 +217,25 @@ pub struct PlatformMemory {
 }
 
 #[cfg(any(target_os = "linux", target_os="android"))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformMemory {
     pub meminfo: BTreeMap<String, ByteSize>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Memory {
     pub total: ByteSize,
     pub free: ByteSize,
     pub platform_memory: PlatformMemory,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatteryLife {
     pub remaining_capacity: f32,
     pub remaining_time: Duration,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Filesystem {
     pub files: usize,
     pub files_total: usize,
@@ -248,7 +249,7 @@ pub struct Filesystem {
     pub fs_mounted_on: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockDeviceStats {
     pub name: String,
     pub read_ios: usize,
@@ -264,7 +265,7 @@ pub struct BlockDeviceStats {
     pub time_in_queue: usize,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum IpAddr {
     Empty,
     Unsupported,
@@ -272,19 +273,19 @@ pub enum IpAddr {
     V6(Ipv6Addr),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkAddrs {
     pub addr: IpAddr,
     pub netmask: IpAddr,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Network {
     pub name: String,
     pub addrs: Vec<NetworkAddrs>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkStats {
     pub rx_bytes: ByteSize,
     pub tx_bytes: ByteSize,
@@ -294,7 +295,7 @@ pub struct NetworkStats {
     pub tx_errors: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SocketStats {
     pub tcp_sockets_in_use: usize,
     pub tcp_sockets_orphaned: usize,
