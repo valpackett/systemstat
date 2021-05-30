@@ -11,10 +11,13 @@ repository = "https://github.com/myfreeweb/systemstat"
 
 [dependencies]
 time = "0.1"
-chrono = "0.4"
+chrono = {version = "0.4.19", features = ["serde"] }
 lazy_static = "1.0"
-bytesize = "1.0"
+bytesize = { version = "1.0.1", features = ["serde"] }
 libc = "0.2"
+serde = {version = "1.0.126", features = ["derive"] }
+
+
 
 [target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
 nom = "6.0"
