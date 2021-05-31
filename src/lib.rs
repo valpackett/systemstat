@@ -7,11 +7,12 @@ extern crate libc;
 extern crate time;
 extern crate chrono;
 extern crate bytesize;
-extern crate serde;
 #[cfg_attr(any(target_os = "freebsd", target_os = "openbsd", target_os = "macos"), macro_use)]
 extern crate lazy_static;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 extern crate nom;
+#[cfg(feature = "serde")]
+extern crate serde;
 
 pub mod platform;
 pub mod data;
