@@ -36,7 +36,7 @@ impl<T> DelayedMeasurement<T> {
 }
 
 #[cfg(not(target_os = "linux"))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformCpuLoad {}
 
 #[cfg(target_os = "linux")]
