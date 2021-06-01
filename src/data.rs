@@ -10,6 +10,9 @@ pub use chrono::{DateTime, Utc, NaiveDateTime, TimeZone};
 pub use bytesize::ByteSize;
 use std::ops::Sub;
 
+#[cfg(feature = "serde")]
+pub use serde::{Serialize, Deserialize};
+
 #[inline(always)]
 pub fn saturating_sub_bytes(l: ByteSize, r: ByteSize) -> ByteSize {
     ByteSize::b(l.as_u64().saturating_sub(r.as_u64()))
@@ -35,10 +38,12 @@ impl<T> DelayedMeasurement<T> {
 }
 
 #[cfg(not(target_os = "linux"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct PlatformCpuLoad {}
 
 #[cfg(target_os = "linux")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct PlatformCpuLoad {
     pub iowait: f32
@@ -88,6 +93,7 @@ impl PlatformCpuLoad {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct CPULoad {
     pub user: f32,
@@ -112,6 +118,7 @@ impl CPULoad {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Copy)]
 pub struct CpuTime {
     pub user: usize,
@@ -163,6 +170,7 @@ impl CpuTime {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct LoadAverage {
     pub one: f32,
@@ -171,6 +179,7 @@ pub struct LoadAverage {
 }
 
 #[cfg(target_os = "windows")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {
     pub load: u32,
@@ -184,6 +193,7 @@ pub struct PlatformMemory {
 }
 
 #[cfg(target_os = "freebsd")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {
     pub active: ByteSize,
@@ -195,6 +205,7 @@ pub struct PlatformMemory {
 }
 
 #[cfg(target_os = "openbsd")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {
     pub active: ByteSize,
@@ -206,6 +217,7 @@ pub struct PlatformMemory {
 }
 
 #[cfg(target_os = "macos")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {
     pub active: ByteSize,
@@ -216,11 +228,13 @@ pub struct PlatformMemory {
 }
 
 #[cfg(any(target_os = "linux", target_os="android"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {
     pub meminfo: BTreeMap<String, ByteSize>,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Memory {
     pub total: ByteSize,
@@ -228,12 +242,14 @@ pub struct Memory {
     pub platform_memory: PlatformMemory,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct BatteryLife {
     pub remaining_capacity: f32,
     pub remaining_time: Duration,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Filesystem {
     pub files: usize,
@@ -248,6 +264,7 @@ pub struct Filesystem {
     pub fs_mounted_on: String,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct BlockDeviceStats {
     pub name: String,
@@ -264,6 +281,7 @@ pub struct BlockDeviceStats {
     pub time_in_queue: usize,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub enum IpAddr {
     Empty,
@@ -272,18 +290,21 @@ pub enum IpAddr {
     V6(Ipv6Addr),
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct NetworkAddrs {
     pub addr: IpAddr,
     pub netmask: IpAddr,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Network {
     pub name: String,
     pub addrs: Vec<NetworkAddrs>,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct NetworkStats {
     pub rx_bytes: ByteSize,
@@ -294,6 +315,7 @@ pub struct NetworkStats {
     pub tx_errors: u64,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct SocketStats {
     pub tcp_sockets_in_use: usize,
