@@ -11,6 +11,8 @@ extern crate bytesize;
 extern crate lazy_static;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 extern crate nom;
+#[cfg(feature = "serde")]
+extern crate serde;
 
 pub mod platform;
 pub mod data;
