@@ -1,6 +1,6 @@
 [![crates.io](https://img.shields.io/crates/v/systemstat.svg)](https://crates.io/crates/systemstat)
 [![API Docs](https://docs.rs/systemstat/badge.svg)](https://docs.rs/systemstat/)
-[![unlicense](https://img.shields.io/badge/un-license-green.svg?style=flat)](http://unlicense.org)
+[![unlicense](https://img.shields.io/badge/un-license-green.svg?style=flat)](https://unlicense.org)
 
 # systemstat
 
@@ -28,21 +28,21 @@ Supported platforms (roughly ordered by completeness of support):
 - macOS
 - *more coming soon*
 
-Originally written for [unixbar](https://github.com/myfreeweb/unixbar) :-)
+Originally written for [unixbar](https://github.com/unrelentingtech/unixbar) :-)
 
 ## Usage
 
-See [examples/info.rs](https://github.com/myfreeweb/systemstat/blob/master/examples/info.rs).
+See [examples/info.rs](https://github.com/unrelentingtech/systemstat/blob/master/examples/info.rs).
 
 ## Contributing
 
 Please feel free to submit pull requests!
 
-By participating in this project you agree to follow the [Contributor Code of Conduct](http://contributor-covenant.org/version/1/4/).
+By participating in this project you agree to follow the [Contributor Code of Conduct](https://www.contributor-covenant.org/version/1/4/code-of-conduct/) and to release your contributions under the Unlicense.
 
-[The list of contributors is available on GitHub](https://github.com/myfreeweb/systemstat/graphs/contributors).
+[The list of contributors is available on GitHub](https://github.com/unrelentingtech/systemstat/graphs/contributors).
 
 ## License
 
 This is free and unencumbered software released into the public domain.  
-For more information, please refer to the `UNLICENSE` file or [unlicense.org](http://unlicense.org).
+For more information, please refer to the `UNLICENSE` file or [unlicense.org](https://unlicense.org).
