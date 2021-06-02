@@ -1,13 +1,13 @@
 [package]
 name = "systemstat"
-version = "0.1.7"
+version = "0.1.8"
 authors = [ "Greg V <greg@unrelenting.technology>" ]
 keywords = [ "System", "Info" ]
 description = "systemstat"
 license = "Unlicense"
 readme = "README.md"
-homepage = "https://github.com/myfreeweb/systemstat"
-repository = "https://github.com/myfreeweb/systemstat"
+homepage = "https://github.com/unrelentingtech/systemstat"
+repository = "https://github.com/unrelentingtech/systemstat"
 
 [dependencies]
 time = "0.1"
@@ -16,7 +16,6 @@ lazy_static = "1.0"
 bytesize = "1.0"
 libc = "0.2"
 serde-feature-hack = { version = "0.2.0", optional = true }
-
 
 [target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
 nom = "6.0"
