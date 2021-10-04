@@ -70,10 +70,10 @@ impl Platform for PlatformImpl {
     }
 
     fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>> {
-        let loads = try!(measure_cpu());
+        let loads = measure_cpu()?;
         Ok(DelayedMeasurement::new(
                 Box::new(move || Ok(loads.iter()
-                               .zip(try!(measure_cpu()).iter())
+                               .zip(measure_cpu()?.iter())
                                .map(|(prev, now)| (*now - prev).to_cpuload())
                                .collect::<Vec<_>>()))))
     }
@@ -150,7 +150,7 @@ impl Platform for PlatformImpl {
         unix::networks()
     }
 
-    fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
+    fn network_stats(&self, _interface: &str) -> io::Result<NetworkStats> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 
