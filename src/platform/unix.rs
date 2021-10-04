@@ -22,7 +22,7 @@ pub fn networks() -> io::Result<BTreeMap<String, Network>> {
     let ifirst = ifap;
     let mut result = BTreeMap::new();
     while ifap != ptr::null_mut() {
-        let ifa = unsafe { (*ifap) };
+        let ifa = unsafe { *ifap };
         let name = unsafe { ffi::CStr::from_ptr(ifa.ifa_name).to_string_lossy().into_owned() };
         let entry = result.entry(name.clone()).or_insert(Network {
             name: name,
@@ -53,7 +53,7 @@ fn parse_addr(aptr: *const sockaddr) -> IpAddr {
             // This is horrible.
             let addr6: *const sockaddr_in6 = unsafe { mem::transmute(aptr) };
             let mut a: [u8; 16] = unsafe { (*addr6).sin6_addr.s6_addr };
-            &mut a[..].reverse();
+            a[..].reverse();
             let a: [u16; 8] = unsafe { mem::transmute(a) };
             IpAddr::V6(Ipv6Addr::new(a[7], a[6], a[5], a[4], a[3], a[2], a[1], a[0]))
         },
