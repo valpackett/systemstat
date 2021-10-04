@@ -183,7 +183,7 @@ fn proc_meminfo(input: &str) -> IResult<&str, BTreeMap<String, ByteSize>> {
                     .map_err(|_| ())
             },
         ),
-        BTreeMap::new(),
+        BTreeMap::new,
         |mut map: BTreeMap<String, ByteSize>, opt| {
             if let Some((key, val)) = opt {
                 map.insert(key.to_string(), val);

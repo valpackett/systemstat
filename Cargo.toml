@@ -18,7 +18,7 @@ libc = "0.2"
 serde-feature-hack = { version = "0.2.0", optional = true }
 
 [target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
-nom = "6.0"
+nom = "7.0"
 
 [target.'cfg(windows)'.dependencies.winapi]
 version = "0.3"
