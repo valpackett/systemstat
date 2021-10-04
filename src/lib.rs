@@ -4,7 +4,6 @@
 #[cfg(windows)]
 extern crate winapi;
 extern crate libc;
-extern crate time;
 extern crate chrono;
 extern crate bytesize;
 #[cfg_attr(any(target_os = "freebsd", target_os = "openbsd", target_os = "macos"), macro_use)]
