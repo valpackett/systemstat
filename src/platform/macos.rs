@@ -1,5 +1,5 @@
-use std::{io, path, ptr, mem, ffi, slice, time};
-use libc::{c_void, c_int, c_schar, c_uchar, size_t, uid_t, sysctl, sysctlnametomib, timeval, statfs};
+use std::{io, ptr, mem, ffi, slice};
+use libc::{c_void, c_int, size_t, sysctl, sysctlnametomib, timeval, statfs};
 use data::*;
 use super::common::*;
 use super::unix;
@@ -91,7 +91,7 @@ impl Platform for PlatformImpl {
         unix::networks()
     }
 
-    fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
+    fn network_stats(&self, _interface: &str) -> io::Result<NetworkStats> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 
