@@ -18,6 +18,15 @@ fn main() {
         Err(x) => println!("\nMounts: error: {}", x)
     }
 
+    match sys.mount_at("/") {
+        Ok(mount) => {
+            println!("\nMount at /:");
+            println!("{} ---{}---> {} (available {} of {})",
+                     mount.fs_mounted_from, mount.fs_type, mount.fs_mounted_on, mount.avail, mount.total);
+        }
+        Err(x) => println!("\nMount at /: error: {}", x)
+    }
+
     match sys.block_device_statistics() {
         Ok(stats) => {
             for blkstats in stats.values() {
