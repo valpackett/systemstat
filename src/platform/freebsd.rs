@@ -2,7 +2,7 @@
 
 use std::{io, path, ptr, mem, ffi, slice, time};
 use std::os::unix::ffi::OsStrExt;
-use libc::{c_void, c_int, c_schar, c_uchar, size_t, uid_t, sysctl, sysctlnametomib, timeval};
+use libc::{c_void, c_int, size_t, sysctl, sysctlnametomib, timeval, statfs};
 use data::*;
 use super::common::*;
 use super::unix;
@@ -131,7 +131,7 @@ impl Platform for PlatformImpl {
             return Err(io::Error::new(io::ErrorKind::Other, "getmntinfo() failed"))
         }
         let mounts = unsafe { slice::from_raw_parts(mptr, len as usize) };
-        Ok(mounts.iter().map(|m| m.to_fs()).collect::<Vec<_>>())
+        Ok(mounts.iter().map(|m| statfs_to_fs(&m)).collect::<Vec<_>>())
     }
 
     fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem> {
@@ -140,7 +140,7 @@ impl Platform for PlatformImpl {
         if unsafe { statfs(path.as_ptr() as *const _, &mut sfs) } != 0 {
             return Err(io::Error::new(io::ErrorKind::Other, "statfs() failed"));
         }
-        Ok(sfs.to_fs())
+        Ok(statfs_to_fs(&sfs))
     }
 
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
@@ -183,53 +183,18 @@ fn zfs_arc_size() -> io::Result<u64> {
     Ok(zfs_arc as u64)
 }
 
-#[repr(C)]
-struct fsid_t {
-    val: [i32; 2],
-}
-
-// FreeBSD's native struct. If you want to know what FreeBSD
-// thinks about the POSIX statvfs struct, read man 3 statvfs :D
-#[repr(C)]
-struct statfs {
-    f_version: u32,
-    f_type: u32,
-    f_flags: u64,
-    f_bsize: u64,
-    f_iosize: u64,
-    f_blocks: u64,
-    f_bfree: u64,
-    f_bavail: i64,
-    f_files: u64,
-    f_ffree: i64,
-    f_syncwrites: u64,
-    f_asyncwrites: u64,
-    f_syncreads: u64,
-    f_asyncreads: u64,
-    f_spare: [u64; 10],
-    f_namemax: u32,
-    f_owner: uid_t,
-    f_fsid: fsid_t,
-    f_charspare: [c_schar; 80],
-    f_fstypename: [c_schar; 16],
-    f_mntfromname: [c_schar; 88],
-    f_mntonname: [c_schar; 88],
-}
-
-impl statfs {
-    fn to_fs(&self) -> Filesystem {
-        Filesystem {
-            files: (self.f_files as usize).saturating_sub(self.f_ffree as usize),
-            files_total: self.f_files as usize,
-            files_avail: self.f_ffree as usize,
-            free: ByteSize::b(self.f_bfree * self.f_bsize),
-            avail: ByteSize::b(self.f_bavail as u64 * self.f_bsize),
-            total: ByteSize::b(self.f_blocks * self.f_bsize),
-            name_max: self.f_namemax as usize,
-            fs_type: unsafe { ffi::CStr::from_ptr(&self.f_fstypename[0]).to_string_lossy().into_owned() },
-            fs_mounted_from: unsafe { ffi::CStr::from_ptr(&self.f_mntfromname[0]).to_string_lossy().into_owned() },
-            fs_mounted_on: unsafe { ffi::CStr::from_ptr(&self.f_mntonname[0]).to_string_lossy().into_owned() },
-        }
+fn statfs_to_fs(fs: &statfs) -> Filesystem {
+    Filesystem {
+        files: (fs.f_files as usize).saturating_sub(fs.f_ffree as usize),
+        files_total: fs.f_files as usize,
+        files_avail: fs.f_ffree as usize,
+        free: ByteSize::b(fs.f_bfree * fs.f_bsize),
+        avail: ByteSize::b(fs.f_bavail as u64 * fs.f_bsize),
+        total: ByteSize::b(fs.f_blocks * fs.f_bsize),
+        name_max: fs.f_namemax as usize,
+        fs_type: unsafe { ffi::CStr::from_ptr(&fs.f_fstypename[0]).to_string_lossy().into_owned() },
+        fs_mounted_from: unsafe { ffi::CStr::from_ptr(&fs.f_mntfromname[0]).to_string_lossy().into_owned() },
+        fs_mounted_on: unsafe { ffi::CStr::from_ptr(&fs.f_mntonname[0]).to_string_lossy().into_owned() },
     }
 }
 
@@ -237,6 +202,4 @@ impl statfs {
 extern "C" {
     #[link_name = "getmntinfo@FBSD_1.0"]
     fn getmntinfo(mntbufp: *mut *mut statfs, flags: c_int) -> c_int;
-    #[link_name = "statfs@FBSD_1.0"]
-    fn statfs(path: *const c_uchar, buf: *mut statfs) -> c_int;
 }
