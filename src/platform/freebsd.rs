@@ -135,9 +135,10 @@ impl Platform for PlatformImpl {
     }
 
     fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem> {
+        let path = ffi::CString::new(path.as_ref().as_os_str().as_bytes())?;
         let mut sfs: statfs = unsafe { mem::zeroed() };
-        if unsafe { statfs(path.as_ref().as_os_str().as_bytes().clone().as_ptr(), &mut sfs) } != 0 {
-            return Err(io::Error::new(io::ErrorKind::Other, "statfs() failed"))
+        if unsafe { statfs(path.as_ptr() as *const _, &mut sfs) } != 0 {
+            return Err(io::Error::new(io::ErrorKind::Other, "statfs() failed"));
         }
         Ok(sfs.to_fs())
     }
