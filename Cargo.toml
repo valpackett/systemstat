@@ -12,7 +12,7 @@ repository = "https://github.com/unrelentingtech/systemstat"
 [dependencies]
 chrono = { version = "0.4", features = ["clock"], default-features = false }
 lazy_static = "1.0"
-bytesize = "1.0"
+bytesize = "1.1"
 libc = "0.2"
 serde-feature-hack = { version = "0.2.0", optional = true }
 
