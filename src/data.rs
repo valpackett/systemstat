@@ -252,12 +252,19 @@ pub struct BatteryLife {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Filesystem {
+    /// Used file nodes in filesystem
     pub files: usize,
+    /// Total file nodes in filesystem
     pub files_total: usize,
+    /// Free nodes available to non-superuser
     pub files_avail: usize,
+    /// Free bytes in filesystem
     pub free: ByteSize,
+    /// Free bytes available to non-superuser
     pub avail: ByteSize,
+    /// Total bytes in filesystem
     pub total: ByteSize,
+    /// Maximum filename length
     pub name_max: usize,
     pub fs_type: String,
     pub fs_mounted_from: String,
