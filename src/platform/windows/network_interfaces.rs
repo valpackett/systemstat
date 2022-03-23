@@ -87,7 +87,7 @@ struct IpAdapterAddresses {
 // https://msdn.microsoft.com/en-us/library/aa365915(v=vs.85).aspx
 // https://msdn.microsoft.com/zh-cn/library/windows/desktop/aa366066(d=printer,v=vs.85).aspx
 // C:\Program Files (x86)\Windows Kits\8.1\Include\um\IPHlpApi.h
-#[link(name = "Iphlpapi")]
+#[link(name = "iphlpapi")]
 extern "system" {
     fn GetAdaptersAddresses(
         family: ULONG,

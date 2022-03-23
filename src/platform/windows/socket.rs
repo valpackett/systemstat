@@ -37,7 +37,7 @@ struct UdpStats {
     num_addrs: c_ulong,
 }
 
-#[link(name = "Iphlpapi")]
+#[link(name = "iphlpapi")]
 extern "system" {
     // https://msdn.microsoft.com/en-us/library/aa366023(v=vs.85).aspx
     fn GetTcpStatisticsEx(pStats: *mut TcpStats, dwFamily: c_ulong) -> c_ulong;
