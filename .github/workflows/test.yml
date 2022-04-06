@@ -28,7 +28,7 @@ jobs:
     needs: [style-check]
     strategy:
       matrix:
-        os: [windows-2016, windows-latest]
+        os: [windows-2019, windows-latest]
     steps:
     - uses: actions/checkout@v1
     - name: Build
