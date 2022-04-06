@@ -3,9 +3,18 @@ name: Test
 on: [push, pull_request]
 
 jobs:
+  style-check:
+    name: Linux ubuntu-latest
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Check style
+      run: cargo fmt -- --check
+
   linux:
     name: Linux ubuntu-latest
     runs-on: ubuntu-latest
+    needs: [style-check]
     steps:
     - uses: actions/checkout@v1
     - name: Build
@@ -16,6 +25,7 @@ jobs:
   windows:
     name: Windows ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    needs: [style-check]
     strategy:
       matrix:
         os: [windows-2016, windows-latest]
@@ -29,6 +39,7 @@ jobs:
   macos:
     name: macOS-latest
     runs-on: macOS-latest
+    needs: [style-check]
     steps:
     - uses: actions/checkout@v1
     - name: Get Rust
