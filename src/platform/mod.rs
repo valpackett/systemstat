@@ -88,30 +88,47 @@ mod tests {
     fn test_mounts() {
         let mounts = PlatformImpl::new().mounts().unwrap();
         assert!(mounts.len() > 0);
-        assert!(mounts.iter().find(|m| m.fs_mounted_on == "/").unwrap().fs_mounted_on == "/");
+        assert!(
+            mounts
+                .iter()
+                .find(|m| m.fs_mounted_on == "/")
+                .unwrap()
+                .fs_mounted_on
+                == "/"
+        );
     }
 
     #[test]
     fn test_mount_at() {
         // XXX: PathBuf required instead of constant string at least on FreeBSD??
-        let mount = PlatformImpl::new().mount_at(std::path::PathBuf::from("/")).unwrap();
+        let mount = PlatformImpl::new()
+            .mount_at(std::path::PathBuf::from("/"))
+            .unwrap();
         assert!(mount.fs_mounted_on == "/");
     }
 
     #[test]
     fn test_networks() {
         let networks = PlatformImpl::new().networks().unwrap();
-        assert!(networks.values().filter(|n| n.name == "lo" || n.name == "lo0").next().unwrap().addrs.len() > 0);
+        assert!(
+            networks
+                .values()
+                .filter(|n| n.name == "lo" || n.name == "lo0")
+                .next()
+                .unwrap()
+                .addrs
+                .len()
+                > 0
+        );
     }
 
     #[test]
     fn test_cpu_measurement_is_send() {
-        use crate::{DelayedMeasurement, CPULoad};
+        use crate::{CPULoad, DelayedMeasurement};
         #[allow(dead_code)]
         fn take_delayed(dm: DelayedMeasurement<Vec<CPULoad>>) {
             use std::thread;
             thread::spawn(move || dm);
         }
     }
-
 }

@@ -1,42 +1,48 @@
 // You are likely to be eaten by a grue.
 
-use std::{io, path, ptr, mem, ffi, slice, time};
-use std::os::unix::ffi::OsStrExt;
-use libc::{c_void, c_int, size_t, sysctl, sysctlnametomib, timeval, statfs};
-use data::*;
+use super::bsd;
 use super::common::*;
 use super::unix;
-use super::bsd;
+use data::*;
+use libc::{c_int, c_void, size_t, statfs, sysctl, sysctlnametomib, timeval};
+use std::os::unix::ffi::OsStrExt;
+use std::{ffi, io, mem, path, ptr, slice, time};
 
 pub struct PlatformImpl;
 
 macro_rules! sysctl_mib {
-    ($len:expr, $name:expr) => {
-        {
-            let mut mib: [c_int; $len] = [0; $len];
-            let mut sz: size_t = mib.len();
-            let s = ffi::CString::new($name).unwrap();
-            unsafe { sysctlnametomib(s.as_ptr(), &mut mib[0], &mut sz) };
-            mib
-        }
-    }
+    ($len:expr, $name:expr) => {{
+        let mut mib: [c_int; $len] = [0; $len];
+        let mut sz: size_t = mib.len();
+        let s = ffi::CString::new($name).unwrap();
+        unsafe { sysctlnametomib(s.as_ptr(), &mut mib[0], &mut sz) };
+        mib
+    }};
 }
 
 macro_rules! sysctl {
-    ($mib:expr, $dataptr:expr, $size:expr, $shouldcheck:expr) => {
+    ($mib:expr, $dataptr:expr, $size:expr, $shouldcheck:expr) => {{
+        let mib = &$mib;
+        let mut size = $size;
+        if unsafe {
+            sysctl(
+                &mib[0],
+                mib.len() as u32,
+                $dataptr as *mut _ as *mut c_void,
+                &mut size,
+                ptr::null(),
+                0,
+            )
+        } != 0
+            && $shouldcheck
         {
-            let mib = &$mib;
-            let mut size = $size;
-            if unsafe { sysctl(&mib[0], mib.len() as u32,
-                               $dataptr as *mut _ as *mut c_void, &mut size, ptr::null(), 0) } != 0 && $shouldcheck {
-                return Err(io::Error::new(io::ErrorKind::Other, "sysctl() failed"))
-            }
-            size
+            return Err(io::Error::new(io::ErrorKind::Other, "sysctl() failed"));
         }
-    };
+        size
+    }};
     ($mib:expr, $dataptr:expr, $size:expr) => {
         sysctl!($mib, $dataptr, $size, true)
-    }
+    };
 }
 
 lazy_static! {
@@ -52,11 +58,18 @@ lazy_static! {
     static ref BATTERY_TIME: [c_int; 4] = sysctl_mib!(4, "hw.acpi.battery.time");
     static ref ACLINE: [c_int; 3] = sysctl_mib!(3, "hw.acpi.acline");
     static ref CPU0TEMP: [c_int; 4] = sysctl_mib!(4, "dev.cpu.0.temperature");
-
     static ref CP_TIMES_SIZE: usize = {
         let mut size: usize = 0;
-        unsafe { sysctl(&KERN_CP_TIMES[0], KERN_CP_TIMES.len() as u32,
-                        ptr::null_mut(), &mut size, ptr::null(), 0) };
+        unsafe {
+            sysctl(
+                &KERN_CP_TIMES[0],
+                KERN_CP_TIMES.len() as u32,
+                ptr::null_mut(),
+                &mut size,
+                ptr::null(),
+                0,
+            )
+        };
         size
     };
 }
@@ -71,11 +84,13 @@ impl Platform for PlatformImpl {
 
     fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>> {
         let loads = measure_cpu()?;
-        Ok(DelayedMeasurement::new(
-                Box::new(move || Ok(loads.iter()
-                               .zip(measure_cpu()?.iter())
-                               .map(|(prev, now)| (*now - prev).to_cpuload())
-                               .collect::<Vec<_>>()))))
+        Ok(DelayedMeasurement::new(Box::new(move || {
+            Ok(loads
+                .iter()
+                .zip(measure_cpu()?.iter())
+                .map(|(prev, now)| (*now - prev).to_cpuload())
+                .collect::<Vec<_>>())
+        })))
     }
 
     fn load_average(&self) -> io::Result<LoadAverage> {
@@ -83,11 +98,16 @@ impl Platform for PlatformImpl {
     }
 
     fn memory(&self) -> io::Result<Memory> {
-        let mut active: usize = 0; sysctl!(V_ACTIVE_COUNT, &mut active, mem::size_of::<usize>());
-        let mut inactive: usize = 0; sysctl!(V_INACTIVE_COUNT, &mut inactive, mem::size_of::<usize>());
-        let mut wired: usize = 0; sysctl!(V_WIRE_COUNT, &mut wired, mem::size_of::<usize>());
-        let mut cache: usize = 0; sysctl!(V_CACHE_COUNT, &mut cache, mem::size_of::<usize>(), false);
-        let mut free: usize = 0; sysctl!(V_FREE_COUNT, &mut free, mem::size_of::<usize>());
+        let mut active: usize = 0;
+        sysctl!(V_ACTIVE_COUNT, &mut active, mem::size_of::<usize>());
+        let mut inactive: usize = 0;
+        sysctl!(V_INACTIVE_COUNT, &mut inactive, mem::size_of::<usize>());
+        let mut wired: usize = 0;
+        sysctl!(V_WIRE_COUNT, &mut wired, mem::size_of::<usize>());
+        let mut cache: usize = 0;
+        sysctl!(V_CACHE_COUNT, &mut cache, mem::size_of::<usize>(), false);
+        let mut free: usize = 0;
+        sysctl!(V_FREE_COUNT, &mut free, mem::size_of::<usize>());
         let arc = ByteSize::b(zfs_arc_size().unwrap_or(0));
         let pmem = PlatformMemory {
             active: ByteSize::kib((active as u64) << *bsd::PAGESHIFT),
@@ -107,12 +127,17 @@ impl Platform for PlatformImpl {
     fn boot_time(&self) -> io::Result<DateTime<Utc>> {
         let mut data: timeval = unsafe { mem::zeroed() };
         sysctl!(KERN_BOOTTIME, &mut data, mem::size_of::<timeval>());
-        Ok(DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(data.tv_sec.into(), data.tv_usec as u32), Utc))
+        Ok(DateTime::<Utc>::from_utc(
+            NaiveDateTime::from_timestamp(data.tv_sec.into(), data.tv_usec as u32),
+            Utc,
+        ))
     }
 
     fn battery_life(&self) -> io::Result<BatteryLife> {
-        let mut life: usize = 0; sysctl!(BATTERY_LIFE, &mut life, mem::size_of::<usize>());
-        let mut time: i32 = 0; sysctl!(BATTERY_TIME, &mut time, mem::size_of::<i32>());
+        let mut life: usize = 0;
+        sysctl!(BATTERY_LIFE, &mut life, mem::size_of::<usize>());
+        let mut time: i32 = 0;
+        sysctl!(BATTERY_TIME, &mut time, mem::size_of::<i32>());
         Ok(BatteryLife {
             remaining_capacity: life as f32 / 100.0,
             remaining_time: time::Duration::from_secs(if time < 0 { 0 } else { time as u64 }),
@@ -120,7 +145,8 @@ impl Platform for PlatformImpl {
     }
 
     fn on_ac_power(&self) -> io::Result<bool> {
-        let mut on: usize = 0; sysctl!(ACLINE, &mut on, mem::size_of::<usize>());
+        let mut on: usize = 0;
+        sysctl!(ACLINE, &mut on, mem::size_of::<usize>());
         Ok(on == 1)
     }
 
@@ -128,7 +154,7 @@ impl Platform for PlatformImpl {
         let mut mptr: *mut statfs = ptr::null_mut();
         let len = unsafe { getmntinfo(&mut mptr, 1 as i32) };
         if len < 1 {
-            return Err(io::Error::new(io::ErrorKind::Other, "getmntinfo() failed"))
+            return Err(io::Error::new(io::ErrorKind::Other, "getmntinfo() failed"));
         }
         let mounts = unsafe { slice::from_raw_parts(mptr, len as usize) };
         Ok(mounts.iter().map(|m| statfs_to_fs(&m)).collect::<Vec<_>>())
@@ -156,7 +182,8 @@ impl Platform for PlatformImpl {
     }
 
     fn cpu_temp(&self) -> io::Result<f32> {
-        let mut temp: i32 = 0; sysctl!(CPU0TEMP, &mut temp, mem::size_of::<i32>());
+        let mut temp: i32 = 0;
+        sysctl!(CPU0TEMP, &mut temp, mem::size_of::<i32>());
         // The sysctl interface supports more units, but both amdtemp and coretemp always
         // use IK (deciKelvin)
         Ok((temp as f32 - 2731.5) / 10.0)
@@ -166,7 +193,6 @@ impl Platform for PlatformImpl {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 }
-
 
 fn measure_cpu() -> io::Result<Vec<CpuTime>> {
     let cpus = *CP_TIMES_SIZE / mem::size_of::<bsd::sysctl_cpu>();
@@ -192,9 +218,21 @@ fn statfs_to_fs(fs: &statfs) -> Filesystem {
         avail: ByteSize::b(fs.f_bavail as u64 * fs.f_bsize),
         total: ByteSize::b(fs.f_blocks * fs.f_bsize),
         name_max: fs.f_namemax as usize,
-        fs_type: unsafe { ffi::CStr::from_ptr(&fs.f_fstypename[0]).to_string_lossy().into_owned() },
-        fs_mounted_from: unsafe { ffi::CStr::from_ptr(&fs.f_mntfromname[0]).to_string_lossy().into_owned() },
-        fs_mounted_on: unsafe { ffi::CStr::from_ptr(&fs.f_mntonname[0]).to_string_lossy().into_owned() },
+        fs_type: unsafe {
+            ffi::CStr::from_ptr(&fs.f_fstypename[0])
+                .to_string_lossy()
+                .into_owned()
+        },
+        fs_mounted_from: unsafe {
+            ffi::CStr::from_ptr(&fs.f_mntfromname[0])
+                .to_string_lossy()
+                .into_owned()
+        },
+        fs_mounted_on: unsafe {
+            ffi::CStr::from_ptr(&fs.f_mntonname[0])
+                .to_string_lossy()
+                .into_owned()
+        },
     }
 }
 

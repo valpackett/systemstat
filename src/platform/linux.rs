@@ -30,8 +30,10 @@ fn value_from_file<T: str::FromStr>(path: &str) -> io::Result<T> {
         .parse()
         .and_then(|n| Ok(n))
         .or_else(|_| {
-            Err(io::Error::new(io::ErrorKind::Other,
-                               format!("File: \"{}\" doesn't contain an int value", &path)))
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("File: \"{}\" doesn't contain an int value", &path),
+            ))
         })
 }
 
@@ -43,9 +45,10 @@ fn time(on_ac: bool, charge_full: i32, charge_now: i32, current_now: i32) -> Dur
     if current_now != 0 {
         if on_ac {
             // Charge time
-            Duration::from_secs(charge_full.saturating_sub(charge_now).abs() as u64 * 3600u64 / current_now as u64)
-        }
-        else {
+            Duration::from_secs(
+                charge_full.saturating_sub(charge_now).abs() as u64 * 3600u64 / current_now as u64,
+            )
+        } else {
             // Discharge time
             Duration::from_secs(charge_now as u64 * 3600u64 / current_now as u64)
         }
@@ -613,10 +616,12 @@ impl Platform for PlatformImpl {
                 .find(|line| line.starts_with("btime "))
                 .ok_or(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    "Could not find btime in /proc/stat"))
-                .and_then(|line|
-                  Utc.datetime_from_str(line, "btime %s")
-                     .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string())))
+                    "Could not find btime in /proc/stat",
+                ))
+                .and_then(|line| {
+                    Utc.datetime_from_str(line, "btime %s")
+                        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
+                })
         })
     }
 
@@ -629,27 +634,32 @@ impl Platform for PlatformImpl {
         for e in entries {
             let p = e.unwrap().path();
             let s = p.to_str().unwrap();
-            if value_from_file::<String>(&(s.to_string() + "/type")).map(|t| t == "Battery").unwrap_or(false) {
+            if value_from_file::<String>(&(s.to_string() + "/type"))
+                .map(|t| t == "Battery")
+                .unwrap_or(false)
+            {
                 full += value_from_file::<i32>(&(s.to_string() + "/energy_full"))
-                        .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_full")))?;
+                    .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_full")))?;
                 now += value_from_file::<i32>(&(s.to_string() + "/energy_now"))
-                        .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_now")))?;
+                    .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_now")))?;
                 current += value_from_file::<i32>(&(s.to_string() + "/power_now"))
-                        .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/current_now")))?;
+                    .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/current_now")))?;
             }
         }
         if full != 0 {
-            let on_ac =
-                match self.on_ac_power() {
-                    Ok(true) => true,
-                    _ => false,
-                };
+            let on_ac = match self.on_ac_power() {
+                Ok(true) => true,
+                _ => false,
+            };
             Ok(BatteryLife {
                 remaining_capacity: capacity(full, now),
                 remaining_time: time(on_ac, full, now, current),
             })
         } else {
-            Err(io::Error::new(io::ErrorKind::Other, "Missing battery information"))
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                "Missing battery information",
+            ))
         }
     }
 
@@ -660,7 +670,10 @@ impl Platform for PlatformImpl {
         for e in entries {
             let p = e.unwrap().path();
             let s = p.to_str().unwrap();
-            if value_from_file::<String>(&(s.to_string() + "/type")).map(|t| t == "Mains").unwrap_or(false) {
+            if value_from_file::<String>(&(s.to_string() + "/type"))
+                .map(|t| t == "Mains")
+                .unwrap_or(false)
+            {
                 on_ac |= value_from_file::<i32>(&(s.to_string() + "/online")).map(|v| v == 1)?
             }
         }
@@ -742,7 +755,10 @@ impl Platform for PlatformImpl {
             .or(read_file("/sys/class/hwmon/hwmon0/temp1_input"))
             .and_then(|data| match data.trim().parse::<f32>() {
                 Ok(x) => Ok(x),
-                Err(_) => Err(io::Error::new(io::ErrorKind::Other, "Could not parse float")),
+                Err(_) => Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "Could not parse float",
+                )),
             })
             .map(|num| num / 1000.0)
     }
