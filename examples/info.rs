@@ -33,7 +33,7 @@ fn main() {
                 println!("{}: {:?}", blkstats.name, blkstats);
             }
         }
-        Err(x) => println!("\nBlock statistics error: {}", x.to_string())
+        Err(x) => println!("\nBlock statistics error: {}", x)
     }
 
     match sys.networks() {
@@ -108,6 +108,6 @@ fn main() {
 
     match sys.socket_stats() {
         Ok(stats) => println!("\nSystem socket statistics: {:?}", stats),
-        Err(x) => println!("\nSystem socket statistics: error: {}", x.to_string())
+        Err(x) => println!("\nSystem socket statistics: error: {}", x)
     }
 }
