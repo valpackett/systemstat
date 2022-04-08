@@ -26,13 +26,9 @@ fn read_file(path: &str) -> io::Result<String> {
 
 fn value_from_file<T: str::FromStr>(path: &str) -> io::Result<T> {
     read_file(path)?
-        .trim_end_matches("\n")
-        .parse()
-        .and_then(|n| Ok(n))
-        .or_else(|_| {
-            Err(io::Error::new(io::ErrorKind::Other,
+        .trim_end_matches('\n')
+        .parse().map_err(|_| io::Error::new(io::ErrorKind::Other,
                                format!("File: \"{}\" doesn't contain an int value", &path)))
-        })
 }
 
 fn capacity(charge_full: i32, charge_now: i32) -> f32 {
