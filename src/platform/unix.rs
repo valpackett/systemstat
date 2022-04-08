@@ -21,7 +21,7 @@ pub fn networks() -> io::Result<BTreeMap<String, Network>> {
     }
     let ifirst = ifap;
     let mut result = BTreeMap::new();
-    while ifap != ptr::null_mut() {
+    while !ifap.is_null() {
         let ifa = unsafe { *ifap };
         let name = unsafe { ffi::CStr::from_ptr(ifa.ifa_name).to_string_lossy().into_owned() };
         let entry = result.entry(name.clone()).or_insert(Network {
@@ -42,7 +42,7 @@ pub fn networks() -> io::Result<BTreeMap<String, Network>> {
 }
 
 fn parse_addr(aptr: *const sockaddr) -> IpAddr {
-    if aptr == ptr::null() {
+    if aptr.is_null() {
         return IpAddr::Empty;
     }
     let addr = unsafe { *aptr };
