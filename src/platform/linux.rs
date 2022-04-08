@@ -292,7 +292,7 @@ fn proc_mounts_line(input: &str) -> IResult<&str, ProcMountsData> {
 fn proc_mounts(input: &str) -> IResult<&str, Vec<ProcMountsData>> {
     many1(map_res(ws(not_line_ending), |input| {
         if input.is_empty() {
-            return Err(());
+            Err(())
         } else {
             proc_mounts_line(input).map(|(_, res)| res).map_err(|_| ())
         }
