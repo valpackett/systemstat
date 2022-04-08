@@ -82,10 +82,10 @@ fn proc_stat_cpu_time(input: &str) -> IResult<&str, CpuTime> {
             tuple((usize_s, usize_s, usize_s, usize_s, usize_s, usize_s)),
         ),
         |(user, nice, system, idle, iowait, irq)| CpuTime {
-            user: user,
-            nice: nice,
-            system: system,
-            idle: idle,
+            user,
+            nice,
+            system,
+            idle,
             interrupt: irq,
             other: iowait,
         },
@@ -365,9 +365,9 @@ fn proc_net_sockstat(input: &str) -> IResult<&str, ProcNetSockStat> {
             )),
         ),
         |(tcp_in_use, tcp_orphaned, udp_in_use)| ProcNetSockStat {
-            tcp_in_use: tcp_in_use,
-            tcp_orphaned: tcp_orphaned,
-            udp_in_use: udp_in_use,
+            tcp_in_use,
+            tcp_orphaned,
+            udp_in_use,
         },
     )(input)
 }
@@ -401,8 +401,8 @@ fn proc_net_sockstat6(input: &str) -> IResult<&str, ProcNetSockStat6> {
             preceded(tag("UDP6: inuse"), usize_s),
         ))),
         |(tcp_in_use, udp_in_use)| ProcNetSockStat6 {
-            tcp_in_use: tcp_in_use,
-            udp_in_use: udp_in_use,
+            tcp_in_use,
+            udp_in_use,
         },
     )(input)
 }
@@ -466,17 +466,17 @@ fn proc_diskstats_line(input: &str) -> IResult<&str, BlockDeviceStats> {
             time_in_queue,
         )| BlockDeviceStats {
             name: name.to_string(),
-            read_ios: read_ios,
-            read_merges: read_merges,
-            read_sectors: read_sectors,
-            read_ticks: read_ticks,
-            write_ios: write_ios,
-            write_merges: write_merges,
-            write_sectors: write_sectors,
-            write_ticks: write_ticks,
-            in_flight: in_flight,
-            io_ticks: io_ticks,
-            time_in_queue: time_in_queue,
+            read_ios,
+            read_merges,
+            read_sectors,
+            read_ticks,
+            write_ios,
+            write_merges,
+            write_sectors,
+            write_ticks,
+            in_flight,
+            io_ticks,
+            time_in_queue,
         },
     )(input)
 }
@@ -593,7 +593,7 @@ impl Platform for PlatformImpl {
                         .map(|x| x.clone())
                         .unwrap_or(ByteSize::b(0)),
                 ),
-                platform_memory: PlatformMemory { meminfo: meminfo },
+                platform_memory: PlatformMemory { meminfo },
             })
     }
 
@@ -726,10 +726,10 @@ impl Platform for PlatformImpl {
         Ok(NetworkStats {
             rx_bytes: ByteSize::b(rx_bytes),
             tx_bytes: ByteSize::b(tx_bytes),
-            rx_packets: rx_packets,
-            tx_packets: tx_packets,
-            rx_errors: rx_errors,
-            tx_errors: tx_errors,
+            rx_packets,
+            tx_packets,
+            rx_errors,
+            tx_errors,
         })
     }
 
