@@ -568,29 +568,23 @@ impl Platform for PlatformImpl {
             })
             .map(|meminfo| Memory {
                 total: meminfo
-                    .get("MemTotal")
-                    .map(|x| x.clone())
+                    .get("MemTotal").copied()
                     .unwrap_or(ByteSize::b(0)),
                 free: saturating_sub_bytes(
                     meminfo
-                        .get("MemFree")
-                        .map(|x| x.clone())
+                        .get("MemFree").copied()
                         .unwrap_or(ByteSize::b(0))
                         + meminfo
-                            .get("Buffers")
-                            .map(|x| x.clone())
+                            .get("Buffers").copied()
                             .unwrap_or(ByteSize::b(0))
                         + meminfo
-                            .get("Cached")
-                            .map(|x| x.clone())
+                            .get("Cached").copied()
                             .unwrap_or(ByteSize::b(0))
                         + meminfo
-                            .get("SReclaimable")
-                            .map(|x| x.clone())
+                            .get("SReclaimable").copied()
                             .unwrap_or(ByteSize::b(0)),
                     meminfo
-                        .get("Shmem")
-                        .map(|x| x.clone())
+                        .get("Shmem").copied()
                         .unwrap_or(ByteSize::b(0)),
                 ),
                 platform_memory: PlatformMemory { meminfo },
