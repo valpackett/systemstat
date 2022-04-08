@@ -44,7 +44,7 @@ mod tests {
         let load = PlatformImpl::new().cpu_load().unwrap();
         thread::sleep(Duration::from_millis(300));
         let load = load.done().unwrap();
-        assert!(load.len() >= 1);
+        assert!(!load.is_empty());
         for cpu in load.iter() {
             let sum = cpu.user + cpu.nice + cpu.system + cpu.interrupt + cpu.idle;
             assert!(sum > 0.95 && sum < 1.05);
@@ -87,7 +87,7 @@ mod tests {
     #[test]
     fn test_mounts() {
         let mounts = PlatformImpl::new().mounts().unwrap();
-        assert!(mounts.len() > 0);
+        assert!(!mounts.is_empty());
         assert!(mounts.iter().find(|m| m.fs_mounted_on == "/").unwrap().fs_mounted_on == "/");
     }
 
@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn test_networks() {
         let networks = PlatformImpl::new().networks().unwrap();
-        assert!(networks.values().filter(|n| n.name == "lo" || n.name == "lo0").next().unwrap().addrs.len() > 0);
+        assert!(!networks.values().find(|n| n.name == "lo" || n.name == "lo0").unwrap().addrs.is_empty());
     }
 
     #[test]
