@@ -25,13 +25,13 @@ pub fn networks() -> io::Result<BTreeMap<String, Network>> {
         let ifa = unsafe { *ifap };
         let name = unsafe { ffi::CStr::from_ptr(ifa.ifa_name).to_string_lossy().into_owned() };
         let entry = result.entry(name.clone()).or_insert(Network {
-            name: name,
+            name,
             addrs: Vec::new(),
         });
         let addr = parse_addr(ifa.ifa_addr);
         if addr != IpAddr::Unsupported {
             entry.addrs.push(NetworkAddrs {
-                addr: addr,
+                addr,
                 netmask: parse_addr(ifa.ifa_netmask),
             });
         }
