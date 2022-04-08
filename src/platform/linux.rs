@@ -629,11 +629,7 @@ impl Platform for PlatformImpl {
             }
         }
         if full != 0 {
-            let on_ac =
-                match self.on_ac_power() {
-                    Ok(true) => true,
-                    _ => false,
-                };
+            let on_ac = matches!(self.on_ac_power(), Ok(true));
             Ok(BatteryLife {
                 remaining_capacity: capacity(full, now),
                 remaining_time: time(on_ac, full, now, current),
