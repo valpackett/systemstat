@@ -121,6 +121,6 @@ fn statfs_to_fs(x: &statfs) -> Filesystem {
 
 #[link(name = "c")]
 extern "C" {
-    #[link_name = "getmntinfo$INODE64"]
+    #[cfg_attr(not(target_arch = "aarch64"), link_name = "getmntinfo$INODE64")]
     fn getmntinfo(mntbufp: *mut *mut statfs, flags: c_int) -> c_int;
 }
