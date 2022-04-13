@@ -10,7 +10,7 @@ pub use self::windows::PlatformImpl;
 #[cfg(unix)]
 pub mod unix;
 
-#[cfg(any(target_os = "freebsd", target_os = "openbsd"))]
+#[cfg(any(target_os = "freebsd", target_os = "openbsd", target_os = "macos"))]
 pub mod bsd;
 
 #[cfg(target_os = "freebsd")]

@@ -220,11 +220,18 @@ pub struct PlatformMemory {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {
+    pub total: ByteSize,
     pub active: ByteSize,
     pub inactive: ByteSize,
     pub wired: ByteSize,
-    pub cache: ByteSize,
     pub free: ByteSize,
+    pub purgeable: ByteSize,
+    pub speculative: ByteSize,
+    pub compressor: ByteSize,
+    pub throttled: ByteSize,
+    pub external: ByteSize,
+    pub internal: ByteSize,
+    pub uncompressed_in_compressor: ByteSize,
 }
 
 #[cfg(any(target_os = "linux", target_os="android"))]
