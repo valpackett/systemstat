@@ -1,8 +1,13 @@
-use std::{io, ptr, mem, ffi, slice};
-use libc::{c_void, c_int, size_t, sysctl, sysctlnametomib, timeval, statfs};
+use std::{io, ptr, mem::{self, MaybeUninit}, ffi, slice};
+use libc::{
+    c_int, c_void, host_statistics64, mach_host_self, size_t, statfs, sysconf, sysctl,
+    sysctlnametomib, timeval, vm_statistics64, HOST_VM_INFO64, HOST_VM_INFO64_COUNT, KERN_SUCCESS,
+    _SC_PHYS_PAGES,
+};
 use data::*;
 use super::common::*;
 use super::unix;
+use super::bsd;
 
 pub struct PlatformImpl;
 
@@ -56,7 +61,63 @@ impl Platform for PlatformImpl {
     }
 
     fn memory(&self) -> io::Result<Memory> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        // Get Total Memory
+        let total = match unsafe { sysconf(_SC_PHYS_PAGES) } {
+            -1 => {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "sysconf(_SC_PHYS_PAGES) failed",
+                ))
+            }
+            n => n as u64,
+        };
+
+        // Get Usage Info
+        let host_port = unsafe { mach_host_self() };
+        let mut stat = MaybeUninit::<vm_statistics64>::zeroed();
+        let mut stat_count = HOST_VM_INFO64_COUNT;
+
+        let ret = unsafe {
+            host_statistics64(
+                host_port,
+                HOST_VM_INFO64,
+                stat.as_mut_ptr() as *mut i32,
+                &mut stat_count,
+            )
+        };
+
+        if ret != KERN_SUCCESS {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "host_statistics64() failed",
+            ));
+        }
+        let stat = unsafe { stat.assume_init() };
+
+        let pmem = PlatformMemory {
+            total: ByteSize::kib(total << *bsd::PAGESHIFT),
+            active: ByteSize::kib((stat.active_count as u64) << *bsd::PAGESHIFT),
+            inactive: ByteSize::kib((stat.inactive_count as u64) << *bsd::PAGESHIFT),
+            wired: ByteSize::kib((stat.wire_count as u64) << *bsd::PAGESHIFT),
+            free: ByteSize::kib((stat.free_count as u64) << *bsd::PAGESHIFT),
+            purgeable: ByteSize::kib((stat.purgeable_count as u64) << *bsd::PAGESHIFT),
+            speculative: ByteSize::kib((stat.speculative_count as u64) << *bsd::PAGESHIFT),
+            compressor: ByteSize::kib((stat.compressor_page_count as u64) << *bsd::PAGESHIFT),
+            throttled: ByteSize::kib((stat.throttled_count as u64) << *bsd::PAGESHIFT),
+            external: ByteSize::kib((stat.external_page_count as u64) << *bsd::PAGESHIFT),
+            internal: ByteSize::kib((stat.internal_page_count as u64) << *bsd::PAGESHIFT),
+            uncompressed_in_compressor: ByteSize::kib(
+                (stat.total_uncompressed_pages_in_compressor as u64) << *bsd::PAGESHIFT,
+            ),
+        };
+
+        Ok(Memory {
+            total: pmem.total,
+            // This is the available memory, but free is more akin to:
+            // pmem.free - pmem.speculative
+            free: pmem.free + pmem.inactive,
+            platform_memory: pmem,
+        })
     }
 
     fn boot_time(&self) -> io::Result<DateTime<Utc>> {
