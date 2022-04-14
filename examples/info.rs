@@ -64,7 +64,7 @@ fn main() {
                    battery.remaining_time.as_secs() % 60),
         Err(x) => print!("\nBattery: error: {}", x)
     }
-    
+
     match sys.on_ac_power() {
         Ok(power) => println!(", AC power: {}", power),
         Err(x) => println!(", AC power: error: {}", x)
@@ -73,6 +73,11 @@ fn main() {
     match sys.memory() {
         Ok(mem) => println!("\nMemory: {} used / {} ({} bytes) total ({:?})", saturating_sub_bytes(mem.total, mem.free), mem.total, mem.total.as_u64(), mem.platform_memory),
         Err(x) => println!("\nMemory: error: {}", x)
+    }
+
+    match sys.swap() {
+        Ok(swap) => println!("\nSwap: {} used / {} ({} bytes) total ({:?})", saturating_sub_bytes(swap.total, swap.free), swap.total, swap.total.as_u64(), swap.platform_swap),
+        Err(x) => println!("\nSwap: error: {}", x)
     }
 
     match sys.load_average() {

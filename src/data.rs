@@ -249,6 +249,28 @@ pub struct Memory {
     pub platform_memory: PlatformMemory,
 }
 
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "android"))]
+pub type PlatformSwap = PlatformMemory;
+
+#[cfg(any(target_os = "macos", target_os = "freebsd", target_os = "openbsd"))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+pub struct PlatformSwap {
+    pub total: ByteSize,
+    pub avail: ByteSize,
+    pub used: ByteSize,
+    pub pagesize: ByteSize,
+    pub encrypted: bool,
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+pub struct Swap {
+    pub total: ByteSize,
+    pub free: ByteSize,
+    pub platform_swap: PlatformSwap,
+}
+
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct BatteryLife {

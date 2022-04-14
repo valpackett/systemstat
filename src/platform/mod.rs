@@ -73,6 +73,19 @@ mod tests {
     }
 
     #[test]
+    fn test_swap() {
+        let swap = PlatformImpl::new().swap().unwrap();
+        assert!(swap.free <= swap.total);
+    }
+
+    #[test]
+    fn test_mem_and_swap() {
+        let (mem, swap) = PlatformImpl::new().memory_and_swap().unwrap();
+        assert!(mem.free.as_u64() > 1024 && mem.total.as_u64() > 1024);
+        assert!(swap.free <= swap.total);
+    }
+
+    #[test]
     fn test_battery_life() {
         if let Ok(bat) = PlatformImpl::new().battery_life() {
             assert!(bat.remaining_capacity <= 100.0 && bat.remaining_capacity >= 0.0);
