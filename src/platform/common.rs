@@ -33,6 +33,19 @@ pub trait Platform {
     /// Returns a memory information object.
     fn memory(&self) -> io::Result<Memory>;
 
+    /// Returns a swap memory information object.
+    fn swap(&self) -> io::Result<Swap>;
+
+    /// Returns a swap and a memory information object.
+    /// On some platforms this is more efficient than calling memory() and swap() separately
+    /// If memory() or swap() are not implemented for a platform, this function will fail.
+    fn memory_and_swap(&self) -> io::Result<(Memory, Swap)> {
+        // Do swap first, in order to fail fast if it's not implemented
+        let swap = self.swap()?;
+        let memory = self.memory()?;
+        Ok((memory, swap))
+    }
+
     /// Returns the system uptime.
     fn uptime(&self) -> io::Result<Duration> {
         self.boot_time().and_then(|bt| {

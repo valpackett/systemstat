@@ -533,62 +533,16 @@ impl Platform for PlatformImpl {
     }
 
     fn memory(&self) -> io::Result<Memory> {
-        memory_stats()
-            .or_else(|_| {
-                // If there's no procfs, e.g. in a chroot without mounting it or something
-                let mut meminfo = BTreeMap::new();
-                let mut info: sysinfo = unsafe { mem::zeroed() };
-                unsafe { sysinfo(&mut info) };
-                let unit = info.mem_unit as u64;
-                meminfo.insert(
-                    "MemTotal".to_owned(),
-                    ByteSize::b(info.totalram as u64 * unit),
-                );
-                meminfo.insert(
-                    "MemFree".to_owned(),
-                    ByteSize::b(info.freeram as u64 * unit),
-                );
-                meminfo.insert(
-                    "Shmem".to_owned(),
-                    ByteSize::b(info.sharedram as u64 * unit),
-                );
-                meminfo.insert(
-                    "Buffers".to_owned(),
-                    ByteSize::b(info.bufferram as u64 * unit),
-                );
-                meminfo.insert(
-                    "SwapTotal".to_owned(),
-                    ByteSize::b(info.totalswap as u64 * unit),
-                );
-                meminfo.insert(
-                    "SwapFree".to_owned(),
-                    ByteSize::b(info.freeswap as u64 * unit),
-                );
-                Ok(meminfo)
-            })
-            .map(|meminfo| Memory {
-                total: meminfo
-                    .get("MemTotal").copied()
-                    .unwrap_or(ByteSize::b(0)),
-                free: saturating_sub_bytes(
-                    meminfo
-                        .get("MemFree").copied()
-                        .unwrap_or(ByteSize::b(0))
-                        + meminfo
-                            .get("Buffers").copied()
-                            .unwrap_or(ByteSize::b(0))
-                        + meminfo
-                            .get("Cached").copied()
-                            .unwrap_or(ByteSize::b(0))
-                        + meminfo
-                            .get("SReclaimable").copied()
-                            .unwrap_or(ByteSize::b(0)),
-                    meminfo
-                        .get("Shmem").copied()
-                        .unwrap_or(ByteSize::b(0)),
-                ),
-                platform_memory: PlatformMemory { meminfo },
-            })
+        PlatformMemory::new().map(PlatformMemory::to_memory)
+    }
+
+    fn swap(&self) -> io::Result<Swap> {
+        PlatformMemory::new().map(PlatformMemory::to_swap)
+    }
+
+    fn memory_and_swap(&self) -> io::Result<(Memory, Swap)> {
+        let pm = PlatformMemory::new()?;
+        Ok((pm.clone().to_memory(), pm.to_swap()))
     }
 
     fn uptime(&self) -> io::Result<Duration> {
@@ -752,6 +706,88 @@ impl Platform for PlatformImpl {
             udp6_sockets_in_use: sockstats6.udp_in_use,
         };
         Ok(result)
+    }
+}
+
+impl PlatformMemory {
+    // Retrieve platform memory information
+    fn new() -> io::Result<Self> {
+        memory_stats()
+            .or_else(|_| {
+                // If there's no procfs, e.g. in a chroot without mounting it or something
+                let mut meminfo = BTreeMap::new();
+                let mut info: sysinfo = unsafe { mem::zeroed() };
+                unsafe { sysinfo(&mut info) };
+                let unit = info.mem_unit as u64;
+                meminfo.insert(
+                    "MemTotal".to_owned(),
+                    ByteSize::b(info.totalram as u64 * unit),
+                );
+                meminfo.insert(
+                    "MemFree".to_owned(),
+                    ByteSize::b(info.freeram as u64 * unit),
+                );
+                meminfo.insert(
+                    "Shmem".to_owned(),
+                    ByteSize::b(info.sharedram as u64 * unit),
+                );
+                meminfo.insert(
+                    "Buffers".to_owned(),
+                    ByteSize::b(info.bufferram as u64 * unit),
+                );
+                meminfo.insert(
+                    "SwapTotal".to_owned(),
+                    ByteSize::b(info.totalswap as u64 * unit),
+                );
+                meminfo.insert(
+                    "SwapFree".to_owned(),
+                    ByteSize::b(info.freeswap as u64 * unit),
+                );
+                Ok(meminfo)
+            })
+            .map(|meminfo| PlatformMemory { meminfo })
+    }
+
+    // Convert the platform memory information to Memory
+    fn to_memory(self) -> Memory {
+        let meminfo = &self.meminfo;
+        Memory {
+            total: meminfo
+                .get("MemTotal").copied()
+                .unwrap_or(ByteSize::b(0)),
+            free: saturating_sub_bytes(
+                meminfo
+                    .get("MemFree").copied()
+                    .unwrap_or(ByteSize::b(0))
+                    + meminfo
+                        .get("Buffers").copied()
+                        .unwrap_or(ByteSize::b(0))
+                    + meminfo
+                        .get("Cached").copied()
+                        .unwrap_or(ByteSize::b(0))
+                    + meminfo
+                        .get("SReclaimable").copied()
+                        .unwrap_or(ByteSize::b(0)),
+                meminfo
+                    .get("Shmem").copied()
+                    .unwrap_or(ByteSize::b(0)),
+            ),
+            platform_memory: self,
+        }
+    }
+
+    // Convert the platform memory information to Swap
+    fn to_swap(self) -> Swap {
+        let meminfo = &self.meminfo;
+        Swap {
+            total: meminfo
+                .get("SwapTotal").copied()
+                .unwrap_or(ByteSize::b(0)),
+            free: meminfo
+                .get("SwapFree").copied()
+                .unwrap_or(ByteSize::b(0)),
+            platform_swap: self,
+        }
     }
 }
 

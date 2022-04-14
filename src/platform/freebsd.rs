@@ -104,6 +104,10 @@ impl Platform for PlatformImpl {
         })
     }
 
+    fn swap(&self) -> io::Result<Swap> {
+        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    }
+
     fn boot_time(&self) -> io::Result<DateTime<Utc>> {
         let mut data: timeval = unsafe { mem::zeroed() };
         sysctl!(KERN_BOOTTIME, &mut data, mem::size_of::<timeval>());
