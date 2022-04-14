@@ -9,10 +9,10 @@ use winapi::um::pdh::{
     PDH_HQUERY,
     PDH_FMT_NOCAP100,
     PdhAddEnglishCounterA,
-    PdhCloseQuery, 
-    PdhCollectQueryData, 
+    PdhCloseQuery,
+    PdhCollectQueryData,
     PdhGetFormattedCounterArrayA,
-    PdhOpenQueryA, 
+    PdhOpenQueryA,
 };
 
 mod disk;
@@ -24,6 +24,7 @@ use data::*;
 
 use std::ffi::CStr;
 use std::slice::from_raw_parts;
+use std::cmp;
 use std::{io, mem, path};
 
 fn u16_array_to_string(p: *const u16) -> String {
@@ -91,7 +92,7 @@ impl Platform for PlatformImpl {
         impl PerformanceCounter {
             pub fn new(key: &CStr) -> io::Result<Self> {
                 let mut query = std::ptr::null_mut();
-                let status = unsafe { 
+                let status = unsafe {
                     PdhOpenQueryA(std::ptr::null(), 0, &mut query)
                 };
 
@@ -152,15 +153,15 @@ impl Platform for PlatformImpl {
                 }
 
                 let mut items = Vec::new();
-                items.reserve(item_count as usize * std::mem::size_of::<PDH_FMT_COUNTERVALUE_ITEM_A>()); 
+                items.reserve(item_count as usize * std::mem::size_of::<PDH_FMT_COUNTERVALUE_ITEM_A>());
                 let status = unsafe {
                     PdhGetFormattedCounterArrayA(self.counter.0, PDH_FMT_DOUBLE, &mut buffer_size, &mut item_count, items.as_mut_ptr())
                 };
 
                 if status as u32 != ERROR_SUCCESS {
                     return Err(io::Error::from_raw_os_error(status));
-                } 
-                
+                }
+
                 unsafe {
                     items.set_len(item_count as usize);
                 }
@@ -173,7 +174,7 @@ impl Platform for PlatformImpl {
         let idle_counter = PerformanceCounter::new(CStr::from_bytes_with_nul(b"\\Processor(*)\\% Idle Time\0").unwrap())?;
         let system_counter = PerformanceCounter::new(CStr::from_bytes_with_nul(b"\\Processor(*)\\% Privileged Time\0").unwrap())?;
         let interrupt_counter = PerformanceCounter::new(CStr::from_bytes_with_nul(b"\\Processor(*)\\% Interrupt Time\0").unwrap())?;
-        
+
         Ok(DelayedMeasurement::new(Box::new(move || {
             let user = user_counter.next_value()?;
             let idle = idle_counter.next_value()?;
@@ -190,7 +191,7 @@ impl Platform for PlatformImpl {
                     interrupt: 0.0,
                     idle: 0.0,
                     platform: PlatformCpuLoad {},
-                }; 
+                };
                 count
             ];
 
@@ -231,35 +232,16 @@ impl Platform for PlatformImpl {
     }
 
     fn memory(&self) -> io::Result<Memory> {
-        let mut status = sysinfoapi::MEMORYSTATUSEX {
-            dwLength: mem::size_of::<sysinfoapi::MEMORYSTATUSEX>() as DWORD,
-            dwMemoryLoad: 0,
-            ullTotalPhys: 0,
-            ullAvailPhys: 0,
-            ullTotalPageFile: 0,
-            ullAvailPageFile: 0,
-            ullTotalVirtual: 0,
-            ullAvailVirtual: 0,
-            ullAvailExtendedVirtual: 0,
-        };
-        unsafe {
-            sysinfoapi::GlobalMemoryStatusEx(&mut status);
-        }
-        let pm = PlatformMemory {
-            load: status.dwMemoryLoad,
-            total_phys: ByteSize::b(status.ullTotalPhys),
-            avail_phys: ByteSize::b(status.ullAvailPhys),
-            total_pagefile: ByteSize::b(status.ullTotalPageFile),
-            avail_pagefile: ByteSize::b(status.ullAvailPageFile),
-            total_virt: ByteSize::b(status.ullTotalVirtual),
-            avail_virt: ByteSize::b(status.ullAvailVirtual),
-            avail_ext: ByteSize::b(status.ullAvailExtendedVirtual),
-        };
-        Ok(Memory {
-            total: pm.total_phys,
-            free: pm.avail_phys,
-            platform_memory: pm,
-        })
+        PlatformMemory::new().map(|pm| pm.to_memory())
+    }
+
+    fn swap(&self) -> io::Result<Swap> {
+        PlatformMemory::new().map(|pm| pm.to_swap())
+    }
+
+    fn memory_and_swap(&self) -> io::Result<(Memory, Swap)> {
+        let pm = PlatformMemory::new()?;
+        Ok((pm.clone().to_memory(), pm.to_swap()))
     }
 
     fn uptime(&self) -> io::Result<Duration> {
@@ -330,4 +312,61 @@ fn power_status() -> winbase::SYSTEM_POWER_STATUS {
         winbase::GetSystemPowerStatus(&mut status);
     }
     status
+}
+
+impl PlatformMemory {
+    // Retrieve platform memory information
+    fn new() -> io::Result<Self> {
+        let mut status = sysinfoapi::MEMORYSTATUSEX {
+            dwLength: mem::size_of::<sysinfoapi::MEMORYSTATUSEX>() as DWORD,
+            dwMemoryLoad: 0,
+            ullTotalPhys: 0,
+            ullAvailPhys: 0,
+            ullTotalPageFile: 0,
+            ullAvailPageFile: 0,
+            ullTotalVirtual: 0,
+            ullAvailVirtual: 0,
+            ullAvailExtendedVirtual: 0,
+        };
+        let ret = unsafe {
+            sysinfoapi::GlobalMemoryStatusEx(&mut status)
+        };
+        if ret == 0 {
+            return Err(io::Error::last_os_error())
+        }
+
+        Ok(Self {
+            load: status.dwMemoryLoad,
+            total_phys: ByteSize::b(status.ullTotalPhys),
+            avail_phys: ByteSize::b(status.ullAvailPhys),
+            total_pagefile: ByteSize::b(status.ullTotalPageFile),
+            avail_pagefile: ByteSize::b(status.ullAvailPageFile),
+            total_virt: ByteSize::b(status.ullTotalVirtual),
+            avail_virt: ByteSize::b(status.ullAvailVirtual),
+            avail_ext: ByteSize::b(status.ullAvailExtendedVirtual),
+        })
+    }
+
+    // Convert the platform memory information to Memory
+    fn to_memory(self) -> Memory {
+        Memory {
+            total: self.total_phys,
+            free: self.avail_phys,
+            platform_memory: self,
+        }
+    }
+
+    // Convert the platform memory information to Swap
+    fn to_swap(self) -> Swap {
+        // Be catious because pagefile and phys don't always sync up
+        // Despite the name, pagefile includes both physical and swap memory
+        let total = saturating_sub_bytes(self.total_pagefile, self.total_phys);
+        let free = saturating_sub_bytes(self.avail_pagefile, self.avail_phys);
+        Swap {
+            total,
+            // Sometimes, especially when swap total is 0, free can exceed total
+            free: cmp::min(total, free),
+            platform_swap: self,
+        }
+    }
 }

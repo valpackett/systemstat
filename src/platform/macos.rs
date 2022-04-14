@@ -1,8 +1,8 @@
 use std::{io, ptr, mem::{self, MaybeUninit}, ffi, slice};
 use libc::{
     c_int, c_void, host_statistics64, mach_host_self, size_t, statfs, sysconf, sysctl,
-    sysctlnametomib, timeval, vm_statistics64, HOST_VM_INFO64, HOST_VM_INFO64_COUNT, KERN_SUCCESS,
-    _SC_PHYS_PAGES,
+    sysctlnametomib, timeval, vm_statistics64, xsw_usage, CTL_VM, HOST_VM_INFO64,
+    HOST_VM_INFO64_COUNT, KERN_SUCCESS, VM_SWAPUSAGE, _SC_PHYS_PAGES,
 };
 use data::*;
 use super::common::*;
@@ -117,6 +117,26 @@ impl Platform for PlatformImpl {
             // pmem.free - pmem.speculative
             free: pmem.free + pmem.inactive,
             platform_memory: pmem,
+        })
+    }
+
+    fn swap(&self) -> io::Result<Swap> {
+        let mut xsw_usage = MaybeUninit::<xsw_usage>::zeroed();
+        sysctl!([CTL_VM, VM_SWAPUSAGE], &mut xsw_usage, mem::size_of::<xsw_usage>());
+        let xsw_usage = unsafe { xsw_usage.assume_init() };
+
+        let ps = PlatformSwap {
+            total: ByteSize::b(xsw_usage.xsu_total),
+            used: ByteSize::b(xsw_usage.xsu_used),
+            avail: ByteSize::b(xsw_usage.xsu_avail),
+            pagesize: ByteSize::b(xsw_usage.xsu_pagesize as u64),
+            encrypted: xsw_usage.xsu_encrypted != 0,
+        };
+
+        Ok(Swap {
+            total: ps.total,
+            free: ps.avail,
+            platform_swap: ps
         })
     }
 
