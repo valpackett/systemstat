@@ -3,7 +3,7 @@
 use std::{io, path, ptr, mem, ffi, slice, time};
 use std::os::unix::ffi::OsStrExt;
 use libc::{c_void, c_int, size_t, sysctl, sysctlnametomib, timeval, statfs};
-use data::*;
+use crate::data::*;
 use super::common::*;
 use super::unix;
 use super::bsd;

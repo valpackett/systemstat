@@ -3,7 +3,7 @@ use winapi::shared::winerror::ERROR_SUCCESS;
 use winapi::shared::ws2def::{AF_INET6, AF_INET};
 
 use super::last_os_error;
-use data::*;
+use crate::data::*;
 
 use std::io;
 

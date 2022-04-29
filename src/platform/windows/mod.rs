@@ -20,7 +20,7 @@ mod network_interfaces;
 mod socket;
 
 use super::common::*;
-use data::*;
+use crate::data::*;
 
 use std::ffi::CStr;
 use std::slice::from_raw_parts;

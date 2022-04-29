@@ -1,5 +1,5 @@
 use std::{io, path};
-use data::*;
+use crate::data::*;
 
 /// The Platform trait declares all the functions for getting system information.
 ///

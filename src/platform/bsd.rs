@@ -1,5 +1,5 @@
 use libc::c_int;
-use data::*;
+use crate::data::*;
 
 lazy_static! {
     pub static ref PAGESHIFT: c_int = {

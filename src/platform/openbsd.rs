@@ -2,7 +2,7 @@ use std::{io, path, ptr, time, fs, mem};
 use std::os::unix::io::AsRawFd;
 use std::mem::size_of;
 use libc::{c_void, c_int, c_uint, c_ulong, c_uchar, ioctl, sysctl, timeval};
-use data::*;
+use crate::data::*;
 use super::common::*;
 use super::unix;
 use super::bsd;

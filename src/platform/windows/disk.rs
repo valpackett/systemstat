@@ -4,7 +4,7 @@ use winapi::um::fileapi::{GetDiskFreeSpaceExW, GetLogicalDriveStringsW, GetVolum
 use winapi::um::winnt::ULARGE_INTEGER;
 
 use super::{last_os_error, u16_array_to_string};
-use data::*;
+use crate::data::*;
 
 use std::char::{decode_utf16, REPLACEMENT_CHARACTER};
 use std::{io, ptr};
