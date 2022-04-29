@@ -6,7 +6,7 @@ use winapi::shared::ws2def::{AF_INET6, AF_INET, AF_UNSPEC, SOCKADDR};
 use winapi::shared::ws2ipdef::SOCKADDR_IN6_LH;
 
 use super::{c_char_array_to_string, last_os_error, u16_array_to_string};
-use data::*;
+use crate::data::*;
 
 use std::collections::BTreeMap;
 use std::io::Write;

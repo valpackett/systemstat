@@ -1,6 +1,6 @@
 use super::common::*;
 use super::unix;
-use data::*;
+use crate::data::*;
 use libc::statvfs;
 use libc::{c_char, c_long, c_schar, c_uint, c_ulong, c_ushort};
 use nom::bytes::complete::{tag, take_till, take_until};

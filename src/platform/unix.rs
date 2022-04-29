@@ -1,6 +1,6 @@
 use std::{io, ffi, ptr, mem};
 use libc::{c_int, getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in6, AF_INET, AF_INET6};
-use data::*;
+use crate::data::*;
 
 pub fn load_average() -> io::Result<LoadAverage> {
     let mut loads: [f64; 3] = [0.0, 0.0, 0.0];
