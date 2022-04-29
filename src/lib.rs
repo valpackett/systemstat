@@ -7,6 +7,9 @@
 )]
 extern crate lazy_static;
 
+#[cfg(feature = "serde")]
+extern crate the_serde as serde;
+
 pub mod data;
 pub mod platform;
 

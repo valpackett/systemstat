@@ -2,16 +2,16 @@
 //!
 //! They're always the same across all platforms.
 
-use std::io;
-pub use std::time::Duration;
-pub use std::net::{Ipv4Addr, Ipv6Addr};
-pub use std::collections::BTreeMap;
-pub use chrono::{DateTime, Utc, NaiveDateTime, TimeZone};
 pub use bytesize::ByteSize;
+pub use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
+pub use std::collections::BTreeMap;
+use std::io;
+pub use std::net::{Ipv4Addr, Ipv6Addr};
 use std::ops::Sub;
+pub use std::time::Duration;
 
 #[cfg(feature = "serde")]
-pub use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[inline(always)]
 pub fn saturating_sub_bytes(l: ByteSize, r: ByteSize) -> ByteSize {
@@ -38,62 +38,70 @@ impl<T> DelayedMeasurement<T> {
 }
 
 #[cfg(not(target_os = "linux"))]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct PlatformCpuLoad {}
 
 #[cfg(target_os = "linux")]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct PlatformCpuLoad {
-    pub iowait: f32
+    pub iowait: f32,
 }
 
 impl PlatformCpuLoad {
-    #[cfg(target_os="linux")]
+    #[cfg(target_os = "linux")]
     #[inline(always)]
     pub fn avg_add(self, rhs: &Self) -> Self {
         PlatformCpuLoad {
-            iowait: (self.iowait + rhs.iowait) / 2.0
+            iowait: (self.iowait + rhs.iowait) / 2.0,
         }
     }
 
-    #[cfg(not(target_os="linux"))]
+    #[cfg(not(target_os = "linux"))]
     #[inline(always)]
     pub fn avg_add(self, _rhs: &Self) -> Self {
         PlatformCpuLoad {}
     }
 
-    #[cfg(target_os="linux")]
+    #[cfg(target_os = "linux")]
     #[inline(always)]
     pub fn zero() -> Self {
-        PlatformCpuLoad {
-            iowait: 0.0,
-        }
+        PlatformCpuLoad { iowait: 0.0 }
     }
 
-    #[cfg(not(target_os="linux"))]
+    #[cfg(not(target_os = "linux"))]
     #[inline(always)]
     pub fn zero() -> Self {
         PlatformCpuLoad {}
     }
 
-    #[cfg(target_os="linux")]
+    #[cfg(target_os = "linux")]
     #[inline(always)]
     pub fn from(input: f32) -> Self {
-        PlatformCpuLoad {
-            iowait: input,
-        }
+        PlatformCpuLoad { iowait: input }
     }
 
-    #[cfg(not(target_os="linux"))]
+    #[cfg(not(target_os = "linux"))]
     #[inline(always)]
     pub fn from(_input: f32) -> Self {
         PlatformCpuLoad {}
     }
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct CPULoad {
     pub user: f32,
@@ -101,7 +109,7 @@ pub struct CPULoad {
     pub system: f32,
     pub interrupt: f32,
     pub idle: f32,
-    pub platform: PlatformCpuLoad
+    pub platform: PlatformCpuLoad,
 }
 
 impl CPULoad {
@@ -118,7 +126,11 @@ impl CPULoad {
     }
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone, Copy)]
 pub struct CpuTime {
     pub user: usize,
@@ -170,7 +182,11 @@ impl CpuTime {
     }
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct LoadAverage {
     pub one: f32,
@@ -179,7 +195,11 @@ pub struct LoadAverage {
 }
 
 #[cfg(target_os = "windows")]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {
     pub load: u32,
@@ -193,7 +213,11 @@ pub struct PlatformMemory {
 }
 
 #[cfg(target_os = "freebsd")]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {
     pub active: ByteSize,
@@ -205,7 +229,11 @@ pub struct PlatformMemory {
 }
 
 #[cfg(target_os = "openbsd")]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {
     pub active: ByteSize,
@@ -217,7 +245,11 @@ pub struct PlatformMemory {
 }
 
 #[cfg(target_os = "macos")]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {
     pub total: ByteSize,
@@ -234,14 +266,22 @@ pub struct PlatformMemory {
     pub uncompressed_in_compressor: ByteSize,
 }
 
-#[cfg(any(target_os = "linux", target_os="android"))]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct PlatformMemory {
     pub meminfo: BTreeMap<String, ByteSize>,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct Memory {
     pub total: ByteSize,
@@ -253,7 +293,11 @@ pub struct Memory {
 pub type PlatformSwap = PlatformMemory;
 
 #[cfg(any(target_os = "macos", target_os = "freebsd", target_os = "openbsd"))]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct PlatformSwap {
     pub total: ByteSize,
@@ -263,7 +307,11 @@ pub struct PlatformSwap {
     pub encrypted: bool,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct Swap {
     pub total: ByteSize,
@@ -271,14 +319,22 @@ pub struct Swap {
     pub platform_swap: PlatformSwap,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct BatteryLife {
     pub remaining_capacity: f32,
     pub remaining_time: Duration,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct Filesystem {
     /// Used file nodes in filesystem
@@ -300,7 +356,11 @@ pub struct Filesystem {
     pub fs_mounted_on: String,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct BlockDeviceStats {
     pub name: String,
@@ -317,7 +377,11 @@ pub struct BlockDeviceStats {
     pub time_in_queue: usize,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum IpAddr {
     Empty,
@@ -326,21 +390,33 @@ pub enum IpAddr {
     V6(Ipv6Addr),
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct NetworkAddrs {
     pub addr: IpAddr,
     pub netmask: IpAddr,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct Network {
     pub name: String,
     pub addrs: Vec<NetworkAddrs>,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct NetworkStats {
     pub rx_bytes: ByteSize,
@@ -351,7 +427,11 @@ pub struct NetworkStats {
     pub tx_errors: u64,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
 #[derive(Debug, Clone)]
 pub struct SocketStats {
     pub tcp_sockets_in_use: usize,
