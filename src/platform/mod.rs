@@ -10,7 +10,12 @@ pub use self::windows::PlatformImpl;
 #[cfg(unix)]
 pub mod unix;
 
-#[cfg(any(target_os = "freebsd", target_os = "openbsd", target_os = "macos"))]
+#[cfg(any(
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd",
+    target_os = "macos"
+))]
 pub mod bsd;
 
 #[cfg(target_os = "freebsd")]
@@ -22,6 +27,11 @@ pub use self::freebsd::PlatformImpl;
 pub mod openbsd;
 #[cfg(target_os = "openbsd")]
 pub use self::openbsd::PlatformImpl;
+
+#[cfg(target_os = "netbsd")]
+pub mod netbsd;
+#[cfg(target_os = "netbsd")]
+pub use self::netbsd::PlatformImpl;
 
 #[cfg(target_os = "macos")]
 pub mod macos;
