@@ -26,6 +26,7 @@ Supported platforms (roughly ordered by completeness of support):
 - OpenBSD
 - Windows
 - macOS
+- NetBSD
 - *more coming soon*
 
 Originally written for [unixbar](https://github.com/unrelentingtech/unixbar) :-)
