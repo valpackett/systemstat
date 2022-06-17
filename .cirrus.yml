@@ -1,7 +1,7 @@
 test_task:
   freebsd_instance:
     matrix:
-      - image_family: freebsd-12-2
+      - image_family: freebsd-12-3
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.lock || echo 'nope'
