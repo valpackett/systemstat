@@ -2,7 +2,12 @@
 //! network interfaces, etc.
 
 #[cfg_attr(
-    any(target_os = "freebsd", target_os = "openbsd", target_os = "macos"),
+    any(
+        target_os = "freebsd",
+        target_os = "openbsd",
+        target_os = "netbsd",
+        target_os = "macos"
+    ),
     macro_use
 )]
 extern crate lazy_static;

@@ -228,7 +228,7 @@ pub struct PlatformMemory {
     pub free: ByteSize,
 }
 
-#[cfg(target_os = "openbsd")]
+#[cfg(any(target_os = "openbsd", target_os = "netbsd"))]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -292,7 +292,7 @@ pub struct Memory {
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "android"))]
 pub type PlatformSwap = PlatformMemory;
 
-#[cfg(any(target_os = "macos", target_os = "freebsd", target_os = "openbsd"))]
+#[cfg(any(target_os = "macos", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
