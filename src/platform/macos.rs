@@ -4,7 +4,6 @@ use libc::{
     sysctlnametomib, timeval, vm_statistics64, xsw_usage, CTL_VM, HOST_VM_INFO64,
     HOST_VM_INFO64_COUNT, KERN_SUCCESS, VM_SWAPUSAGE, _SC_PHYS_PAGES,
 };
-use time::OffsetDateTime;
 use crate::data::*;
 use super::common::*;
 use super::unix;
