@@ -3,7 +3,6 @@
 //! They're always the same across all platforms.
 
 pub use bytesize::ByteSize;
-pub use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 pub use std::collections::BTreeMap;
 use std::io;
 pub use std::net::{Ipv4Addr, Ipv6Addr};

@@ -80,10 +80,11 @@ impl Platform for PlatformImpl {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 
-    fn boot_time(&self) -> io::Result<DateTime<Utc>> {
+    fn boot_time(&self) -> io::Result<OffsetDateTime> {
         let mut data: timeval = unsafe { mem::zeroed() };
         sysctl!(KERN_BOOTTIME, &mut data, mem::size_of::<timeval>());
-        Ok(DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(data.tv_sec, data.tv_usec as u32), Utc))
+        let ts = OffsetDateTime::from_unix_timestamp(data.tv_sec).expect("unix timestamp should be within range") + Duration::from_nanos(data.tv_usec as u64);
+        Ok(ts)
     }
 
     // /dev/apm is probably the nicest interface I've seen :)

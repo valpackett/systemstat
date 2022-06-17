@@ -29,7 +29,7 @@ impl Platform for PlatformImpl {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 
-    fn boot_time(&self) -> io::Result<DateTime<Utc>> {
+    fn boot_time(&self) -> io::Result<OffsetDateTime> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 

@@ -108,10 +108,11 @@ impl Platform for PlatformImpl {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 
-    fn boot_time(&self) -> io::Result<DateTime<Utc>> {
+    fn boot_time(&self) -> io::Result<OffsetDateTime> {
         let mut data: timeval = unsafe { mem::zeroed() };
         sysctl!(KERN_BOOTTIME, &mut data, mem::size_of::<timeval>());
-        Ok(DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(data.tv_sec.into(), data.tv_usec as u32), Utc))
+        let ts = OffsetDateTime::from_unix_timestamp(data.tv_sec).expect("unix timestamp should be within range") + Duration::from_nanos(data.tv_usec as u64);
+        Ok(ts)
     }
 
     fn battery_life(&self) -> io::Result<BatteryLife> {
@@ -130,7 +131,7 @@ impl Platform for PlatformImpl {
 
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
         let mut mptr: *mut statfs = ptr::null_mut();
-        let len = unsafe { getmntinfo(&mut mptr, 1 as i32) };
+        let len = unsafe { getmntinfo(&mut mptr, 1_i32) };
         if len < 1 {
             return Err(io::Error::new(io::ErrorKind::Other, "getmntinfo() failed"))
         }
