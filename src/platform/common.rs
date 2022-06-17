@@ -1,4 +1,5 @@
-use std::{io, path};
+use std::{io, path, convert::{TryFrom, TryInto}};
+use time::OffsetDateTime;
 use crate::data::*;
 
 /// The Platform trait declares all the functions for getting system information.
@@ -49,16 +50,18 @@ pub trait Platform {
     /// Returns the system uptime.
     fn uptime(&self) -> io::Result<Duration> {
         self.boot_time().and_then(|bt| {
-            Utc::now().signed_duration_since(bt).to_std()
+            (OffsetDateTime::now_utc() - bt)
+                .try_into()
                 .map_err(|_| io::Error::new(io::ErrorKind::Other, "Could not process time"))
         })
     }
 
     /// Returns the system boot time.
-    fn boot_time(&self) -> io::Result<DateTime<Utc>> {
+    fn boot_time(&self) -> io::Result<OffsetDateTime> {
         self.uptime().and_then(|ut| {
-            Ok(Utc::now() - chrono::Duration::from_std(ut)
-                .map_err(|_| io::Error::new(io::ErrorKind::Other, "Could not process time"))?)
+            Ok(OffsetDateTime::now_utc()
+                - time::Duration::try_from(ut)
+                    .map_err(|_| io::Error::new(io::ErrorKind::Other, "Could not process time"))?)
         })
     }
 
