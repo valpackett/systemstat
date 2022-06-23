@@ -228,7 +228,7 @@ pub struct PlatformMemory {
     pub free: ByteSize,
 }
 
-#[cfg(any(target_os = "openbsd", target_os = "netbsd"))]
+#[cfg(target_os = "openbsd")]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -242,6 +242,29 @@ pub struct PlatformMemory {
     pub cache: ByteSize,
     pub free: ByteSize,
     pub paging: ByteSize,
+}
+
+#[cfg(target_os = "netbsd")]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "the_serde")
+)]
+#[derive(Debug, Clone)]
+pub struct PlatformMemory {
+    pub pageshift: i64,
+    pub total: ByteSize,
+    pub active: ByteSize,
+    pub inactive: ByteSize,
+    pub wired: ByteSize,
+    pub free: ByteSize,
+    pub paging: ByteSize,
+    pub anon: ByteSize,
+    pub files: ByteSize,
+    pub exec: ByteSize,
+    pub sw: ByteSize,
+    pub swinuse: ByteSize,
+    pub swonly: ByteSize,
 }
 
 #[cfg(target_os = "macos")]
@@ -289,10 +312,15 @@ pub struct Memory {
     pub platform_memory: PlatformMemory,
 }
 
-#[cfg(any(target_os = "windows", target_os = "linux", target_os = "android"))]
+#[cfg(any(
+    target_os = "windows",
+    target_os = "linux",
+    target_os = "android",
+    target_os = "netbsd"
+))]
 pub type PlatformSwap = PlatformMemory;
 
-#[cfg(any(target_os = "macos", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))]
+#[cfg(any(target_os = "macos", target_os = "freebsd", target_os = "openbsd"))]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
