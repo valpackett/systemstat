@@ -27,7 +27,7 @@ macro_rules! sysctl {
 }
 
 lazy_static! {
-    static ref APM_IOC_GETPOWER: c_ulong = (0x40000000u64 | ((size_of::<apm_power_info>() & 0x1fff) << 16) as u64 | (0x41 << 8) | 3);
+    static ref APM_IOC_GETPOWER: c_ulong = 0x40000000u64 | ((size_of::<apm_power_info>() & 0x1fff) << 16) as u64 | (0x41 << 8) | 3;
     // OpenBSD does not have sysctlnametomib, so more copy-pasting of magic numbers from C headers :(
     static ref HW_NCPU: [c_int; 2] = [6, 3];
     static ref KERN_CPTIME2: [c_int; 3] = [1, 71, 0];
@@ -45,10 +45,10 @@ impl Platform for PlatformImpl {
     }
 
     fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>> {
-        let loads = try!(measure_cpu());
+        let loads = measure_cpu()?;
         Ok(DelayedMeasurement::new(
                 Box::new(move || Ok(loads.iter()
-                               .zip(try!(measure_cpu()).iter())
+                               .zip(measure_cpu()?.iter())
                                .map(|(prev, now)| (*now - prev).to_cpuload())
                                .collect::<Vec<_>>()))))
     }
@@ -58,26 +58,16 @@ impl Platform for PlatformImpl {
     }
 
     fn memory(&self) -> io::Result<Memory> {
-        let mut uvm_info = uvmexp::default(); sysctl!(VM_UVMEXP, &mut uvm_info, mem::size_of::<uvmexp>());
-        let mut bcache_info = bcachestats::default(); sysctl!(VFS_BCACHESTAT, &mut bcache_info, mem::size_of::<bcachestats>());
-        let total = ByteSize::kib((uvm_info.npages << *bsd::PAGESHIFT) as usize);
-        let pmem = PlatformMemory {
-            active: ByteSize::kib((uvm_info.active << *bsd::PAGESHIFT) as usize),
-            inactive: ByteSize::kib((uvm_info.inactive << *bsd::PAGESHIFT) as usize),
-            wired: ByteSize::kib((uvm_info.wired << *bsd::PAGESHIFT) as usize),
-            cache: ByteSize::kib((bcache_info.numbufpages << *bsd::PAGESHIFT) as usize),
-            free: ByteSize::kib((uvm_info.free << *bsd::PAGESHIFT) as usize),
-            paging: ByteSize::kib((uvm_info.paging << *bsd::PAGESHIFT) as usize),
-        };
-        Ok(Memory {
-            total: total,
-            free: pmem.inactive + pmem.cache + pmem.free + pmem.paging,
-            platform_memory: pmem,
-        })
+        PlatformMemory::new().map(|pm| pm.to_memory())
     }
 
     fn swap(&self) -> io::Result<Swap> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        PlatformMemory::new().map(|pm| pm.to_swap())
+    }
+
+    fn memory_and_swap(&self) -> io::Result<(Memory, Swap)> {
+        let pm = PlatformMemory::new()?;
+        Ok((pm.clone().to_memory(), pm.to_swap()))
     }
 
     fn boot_time(&self) -> io::Result<OffsetDateTime> {
@@ -89,7 +79,7 @@ impl Platform for PlatformImpl {
 
     // /dev/apm is probably the nicest interface I've seen :)
     fn battery_life(&self) -> io::Result<BatteryLife> {
-        let f = try!(fs::File::open("/dev/apm"));
+        let f = fs::File::open("/dev/apm")?;
         let mut info = apm_power_info::default();
         if unsafe { ioctl(f.as_raw_fd(), *APM_IOC_GETPOWER, &mut info) } == -1 {
             return Err(io::Error::new(io::ErrorKind::Other, "ioctl() failed"))
@@ -107,7 +97,7 @@ impl Platform for PlatformImpl {
     }
 
     fn on_ac_power(&self) -> io::Result<bool> {
-        let f = try!(fs::File::open("/dev/apm"));
+        let f = fs::File::open("/dev/apm")?;
         let mut info = apm_power_info::default();
         if unsafe { ioctl(f.as_raw_fd(), *APM_IOC_GETPOWER, &mut info) } == -1 {
             return Err(io::Error::new(io::ErrorKind::Other, "ioctl() failed"))
@@ -131,7 +121,7 @@ impl Platform for PlatformImpl {
         unix::networks()
     }
 
-    fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
+    fn network_stats(&self, _interface: &str) -> io::Result<NetworkStats> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 
@@ -156,6 +146,48 @@ fn measure_cpu() -> io::Result<Vec<CpuTime>> {
     }
     Ok(data.into_iter().map(|cpu| cpu.into()).collect())
 }
+
+impl PlatformMemory {
+    // Retrieve platform memory information
+    fn new() -> io::Result<Self> {
+        let mut uvm_info = uvmexp::default();
+        sysctl!(VM_UVMEXP, &mut uvm_info, mem::size_of::<uvmexp>());
+        let mut bcache_info = bcachestats::default();
+        sysctl!(
+            VFS_BCACHESTAT,
+            &mut bcache_info,
+            mem::size_of::<bcachestats>()
+        );
+
+        Ok(Self {
+            total: ByteSize::kib((uvm_info.npages << *bsd::PAGESHIFT) as u64),
+            active: ByteSize::kib((uvm_info.active << *bsd::PAGESHIFT) as u64),
+            inactive: ByteSize::kib((uvm_info.inactive << *bsd::PAGESHIFT) as u64),
+            wired: ByteSize::kib((uvm_info.wired << *bsd::PAGESHIFT) as u64),
+            cache: ByteSize::kib((bcache_info.numbufpages << *bsd::PAGESHIFT) as u64),
+            free: ByteSize::kib((uvm_info.free << *bsd::PAGESHIFT) as u64),
+            paging: ByteSize::kib((uvm_info.paging << *bsd::PAGESHIFT) as u64),
+            sw: ByteSize::kib((uvm_info.swpages << *bsd::PAGESHIFT) as u64),
+            swinuse: ByteSize::kib((uvm_info.swpginuse << *bsd::PAGESHIFT) as u64),
+            swonly: ByteSize::kib((uvm_info.swpgonly << *bsd::PAGESHIFT) as u64),
+        })
+    }
+    fn to_memory(self) -> Memory {
+        Memory {
+            total: self.total,
+            free: self.inactive + self.cache + self.free + self.paging,
+            platform_memory: self,
+        }
+    }
+    fn to_swap(self) -> Swap {
+        Swap {
+            total: self.sw,
+            free: saturating_sub_bytes(self.sw, self.swinuse),
+            platform_swap: self,
+        }
+    }
+}
+
 
 #[derive(Default, Debug)]
 #[repr(C)]
