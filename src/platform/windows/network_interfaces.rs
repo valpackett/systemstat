@@ -105,7 +105,7 @@ pub fn get() -> io::Result<BTreeMap<String, Network>> {
     let mut p_adapter: *mut IpAdapterAddresses;
     loop {
         unsafe {
-            p_adapter = malloc(WORKING_BUFFER_SIZEL) as *mut IpAdapterAddresses;
+            p_adapter = malloc(new_size as size_t) as *mut IpAdapterAddresses;
             if p_adapter.is_null() {
                 panic!("Failed: malloc!");
             }
@@ -126,6 +126,7 @@ pub fn get() -> io::Result<BTreeMap<String, Network>> {
                     continue;
                 }
                 _ => {
+                    free(p_adapter as *mut c_void);
                     last_os_error()?;
                 }
             }
