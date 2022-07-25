@@ -274,10 +274,6 @@ impl Platform for PlatformImpl {
         disk::drives()
     }
 
-    fn mount_at<P: AsRef<path::Path>>(&self, _path: P) -> io::Result<Filesystem> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
-    }
-
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
