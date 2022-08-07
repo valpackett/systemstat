@@ -1,7 +1,8 @@
-use std::{io, path, ptr, time, fs, mem};
+use std::{io, path, ptr, time, fs, mem, ffi, slice};
 use std::os::unix::io::AsRawFd;
+use std::os::unix::ffi::OsStrExt;
 use std::mem::size_of;
-use libc::{c_void, c_int, c_uint, c_ulong, c_uchar, ioctl, sysctl, timeval};
+use libc::{c_void, c_int, c_uint, c_ulong, c_uchar, ioctl, sysctl, timeval, statfs, ifaddrs, getifaddrs, if_data, freeifaddrs};
 use crate::data::*;
 use super::common::*;
 use super::unix;
@@ -34,6 +35,11 @@ lazy_static! {
     static ref KERN_BOOTTIME: [c_int; 2] = [1, 21];
     static ref VM_UVMEXP: [c_int; 2] = [2, 4];
     static ref VFS_BCACHESTAT: [c_int; 3] = [10, 0, 3];
+}
+
+#[link(name = "c")]
+extern "C" {
+    fn getmntinfo(mntbufp: *mut *mut statfs, flags: c_int) -> c_int;
 }
 
 /// An implementation of `Platform` for OpenBSD.
@@ -106,11 +112,22 @@ impl Platform for PlatformImpl {
     }
 
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        let mut mptr: *mut statfs = ptr::null_mut();
+        let len = unsafe { getmntinfo(&mut mptr, 1 as i32) };
+        if len < 1 {
+            return Err(io::Error::new(io::ErrorKind::Other, "getmntinfo() failed"))
+        }
+        let mounts = unsafe { slice::from_raw_parts(mptr, len as usize) };
+        Ok(mounts.iter().map(|m| statfs_to_fs(&m)).collect::<Vec<_>>())
     }
 
-    fn mount_at<P: AsRef<path::Path>>(&self, _: P) -> io::Result<Filesystem> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem> {
+        let path = ffi::CString::new(path.as_ref().as_os_str().as_bytes())?;
+        let mut sfs: statfs = unsafe { mem::zeroed() };
+        if unsafe { statfs(path.as_ptr() as *const _, &mut sfs) } != 0 {
+            return Err(io::Error::new(io::ErrorKind::Other, "statfs() failed"));
+        }
+        Ok(statfs_to_fs(&sfs))
     }
 
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
@@ -121,8 +138,51 @@ impl Platform for PlatformImpl {
         unix::networks()
     }
 
-    fn network_stats(&self, _interface: &str) -> io::Result<NetworkStats> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
+        let mut rx_bytes: u64   = 0;
+        let mut tx_bytes: u64   = 0;
+        let mut rx_packets: u64 = 0;
+        let mut tx_packets: u64 = 0;
+        let mut rx_errors: u64  = 0;
+        let mut tx_errors: u64  = 0;
+        let mut ifap: *mut ifaddrs = std::ptr::null_mut();
+        let mut ifa: *mut ifaddrs;
+        let mut data: *mut if_data;
+        unsafe {
+            getifaddrs(&mut ifap);
+            ifa = ifap;
+            // Multiple entries may be same network but for different addresses (ipv4, ipv6, link
+            // layer)
+            while !ifa.is_null() {
+                let c_str: &std::ffi::CStr = std::ffi::CStr::from_ptr((*ifa).ifa_name);
+                let str_net: &str = match c_str.to_str() {
+                    Ok(v)  => v,
+                    Err(_) => return Err(io::Error::new(io::ErrorKind::Other, "C string cannot be converted"))
+                };
+                if interface == str_net {
+                    data        = (*ifa).ifa_data as *mut if_data;
+                    // if_data may not be present in every table
+                    if !data.is_null() {
+                        rx_bytes   += (*data).ifi_ibytes;
+                        tx_bytes   += (*data).ifi_obytes;
+                        rx_packets += (*data).ifi_ipackets;
+                        tx_packets += (*data).ifi_opackets;
+                        rx_errors  += (*data).ifi_ierrors;
+                        tx_errors  += (*data).ifi_oerrors;
+                    }
+                }
+                ifa = (*ifa).ifa_next;
+            }
+            freeifaddrs(ifap);
+        }
+        Ok(NetworkStats {
+            rx_bytes: ByteSize::b(rx_bytes),
+            tx_bytes: ByteSize::b(tx_bytes),
+            rx_packets,
+            tx_packets,
+            rx_errors,
+            tx_errors,
+        })
     }
 
     fn cpu_temp(&self) -> io::Result<f32> {
@@ -137,12 +197,12 @@ impl Platform for PlatformImpl {
 fn measure_cpu() -> io::Result<Vec<CpuTime>> {
     let mut cpus: usize = 0;
     sysctl!(HW_NCPU, &mut cpus, mem::size_of::<usize>());
-    let mut data: Vec<bsd::sysctl_cpu> = Vec::with_capacity(cpus);
+    let mut data: Vec<sysctl_cpu> = Vec::with_capacity(cpus);
     unsafe { data.set_len(cpus) };
     for i in 0..cpus {
         let mut mib = KERN_CPTIME2.clone();
         mib[2] = i as i32;
-        sysctl!(mib, &mut data[i], mem::size_of::<bsd::sysctl_cpu>());
+        sysctl!(mib, &mut data[i], mem::size_of::<sysctl_cpu>());
     }
     Ok(data.into_iter().map(|cpu| cpu.into()).collect())
 }
@@ -188,6 +248,44 @@ impl PlatformMemory {
     }
 }
 
+fn statfs_to_fs(fs: &statfs) -> Filesystem {
+    Filesystem {
+        files: (fs.f_files as usize).saturating_sub(fs.f_ffree as usize),
+        files_total: fs.f_files as usize,
+        files_avail: fs.f_ffree as usize,
+        free: ByteSize::b(fs.f_bfree * fs.f_bsize as u64),
+        avail: ByteSize::b(fs.f_bavail as u64 * fs.f_bsize as u64),
+        total: ByteSize::b(fs.f_blocks * fs.f_bsize as u64),
+        name_max: fs.f_namemax as usize,
+        fs_type: unsafe { ffi::CStr::from_ptr(&fs.f_fstypename[0]).to_string_lossy().into_owned() },
+        fs_mounted_from: unsafe { ffi::CStr::from_ptr(&fs.f_mntfromname[0]).to_string_lossy().into_owned() },
+        fs_mounted_on: unsafe { ffi::CStr::from_ptr(&fs.f_mntonname[0]).to_string_lossy().into_owned() },
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct sysctl_cpu {
+    user: usize,
+    nice: usize,
+    system: usize,
+    spin: usize,
+    interrupt: usize,
+    idle: usize,
+}
+
+impl From<sysctl_cpu> for CpuTime {
+    fn from(cpu: sysctl_cpu) -> CpuTime {
+        CpuTime {
+            user: cpu.user,
+            nice: cpu.nice,
+            system: cpu.system,
+            interrupt: cpu.interrupt,
+            idle: cpu.idle,
+            other: 0,
+        }
+    }
+}
 
 #[derive(Default, Debug)]
 #[repr(C)]
@@ -332,3 +430,4 @@ struct uvmexp {
     fpswtch: c_int,	/* FPU context switches */
     kmapent: c_int,	/* number of kernel map entries */
 }
+
