@@ -265,7 +265,7 @@ fn statfs_to_fs(fs: &statfs) -> Filesystem {
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
-// Fields of KERN_CPTIME2: https://github.com/openbsd/src/blob/master/sys/sys/sched.h#L83
+/// Fields of KERN_CPTIME2: https://github.com/openbsd/src/blob/0403d5bcc6af6e3b8d03ad1c6de319d5acc58295/sys/sys/sched.h#L83
 pub struct sysctl_cpu {
     user: usize,
     nice: usize,
