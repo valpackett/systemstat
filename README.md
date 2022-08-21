@@ -29,8 +29,6 @@ Supported platforms (roughly ordered by completeness of support):
 - NetBSD
 - *more coming soon*
 
-Originally written for [unixbar](https://github.com/unrelentingtech/unixbar) :-)
-
 ## Usage
 
 See [examples/info.rs](https://github.com/unrelentingtech/systemstat/blob/master/examples/info.rs).
@@ -40,8 +38,6 @@ See [examples/info.rs](https://github.com/unrelentingtech/systemstat/blob/master
 Please feel free to submit pull requests!
 
 By participating in this project you agree to follow the [Contributor Code of Conduct](https://www.contributor-covenant.org/version/1/4/code-of-conduct/) and to release your contributions under the Unlicense.
-
-[The list of contributors is available on GitHub](https://github.com/unrelentingtech/systemstat/graphs/contributors).
 
 ## License
 
