@@ -8,7 +8,6 @@ use std::io;
 pub use std::net::{Ipv4Addr, Ipv6Addr};
 use std::ops::Sub;
 pub use std::time::Duration;
-pub use time::OffsetDateTime;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
