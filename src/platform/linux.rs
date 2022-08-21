@@ -551,23 +551,16 @@ impl Platform for PlatformImpl {
         Ok(Duration::from_secs(info.uptime as u64))
     }
 
-    fn boot_time(&self) -> io::Result<OffsetDateTime> {
+    fn boot_time(&self) -> io::Result<DateTime<Utc>> {
         read_file("/proc/stat").and_then(|data| {
             data.lines()
                 .find(|line| line.starts_with("btime "))
                 .ok_or(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    "Could not find btime in /proc/stat",
-                ))
-                .and_then(|line| {
-                    let timestamp_str = line
-                        .strip_prefix("btime ")
-                        .expect("line starts with 'btime '");
-                    timestamp_str
-                        .parse::<u32>()
-                        .and_then(|timestamp| OffsetDateTime::from_unix_timestamp(timestamp))
-                        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
-                })
+                    "Could not find btime in /proc/stat"))
+                .and_then(|line|
+                  Utc.datetime_from_str(line, "btime %s")
+                     .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string())))
         })
     }
 

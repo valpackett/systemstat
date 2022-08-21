@@ -11,7 +11,7 @@ homepage = "https://github.com/unrelentingtech/systemstat"
 repository = "https://github.com/unrelentingtech/systemstat"
 
 [dependencies]
-time = "0.3.9"
+chrono = { version = "0.4", features = ["clock"], default-features = false }
 lazy_static = "1.0"
 bytesize = "1.1"
 libc = "0.2"
@@ -35,4 +35,4 @@ targets = [
 ]
 
 [features]
-serde = ["the_serde", "bytesize/serde", "time/serde"]
+serde = ["the_serde", "bytesize/serde", "chrono/serde"]

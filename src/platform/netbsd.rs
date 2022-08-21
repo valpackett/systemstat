@@ -64,7 +64,7 @@ impl Platform for PlatformImpl {
         Ok((pm.clone().to_memory(), pm.to_swap()))
     }
 
-    fn boot_time(&self) -> io::Result<OffsetDateTime> {
+    fn boot_time(&self) -> io::Result<DateTime<Utc>> {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 
