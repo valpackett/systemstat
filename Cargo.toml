@@ -2,9 +2,9 @@
 name = "systemstat"
 version = "0.2.0"
 edition = "2018"
-authors = [ "unrelentingtech <hello@unrelenting.technology>" ]
+authors = [ "Val Packett <val@packett.cool>" ]
 keywords = [ "System", "Info" ]
-description = "systemstat"
+description = "Get system information/statistics in a cross-platform way"
 license = "Unlicense"
 readme = "README.md"
 homepage = "https://github.com/unrelentingtech/systemstat"
