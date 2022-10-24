@@ -41,6 +41,15 @@ match sys.load_average() {
     Err(x) => println!("Load average: error: {}", x)
 }
 #+end_src
+
+Returns LoadAverage
+#+begin_src rust
+pub struct LoadAverage {
+    pub one: f32,
+    pub five: f32,
+    pub fifteen: f32,
+}
+#+end_src
 * Memory info
 | FreeBSD | Linux | OpenBSD | Window | MacOS | NetBSD |
 |---------+-------+---------+--------+-------+--------|
@@ -79,6 +88,8 @@ match sys.uptime() {
     Err(x) => println!("Uptime: error: {}", x)
 }
 #+end_src
+
+Returns ~OffsetDateTime~.
 * AC adapter status
 | FreeBSD | Linux | OpenBSD | Window | MacOS | NetBSD |
 |---------+-------+---------+--------+-------+--------|
@@ -91,6 +102,8 @@ match sys.on_ac_power() {
     Err(x) => println!("AC adapter status: error: {}", x)
 }
 #+end_src
+
+Returns a ~bool~.
 * Battery life
 | FreeBSD | Linux | OpenBSD | Window | MacOS | NetBSD |
 |---------+-------+---------+--------+-------+--------|
@@ -106,6 +119,14 @@ match sys.battery_life() {
     Err(x) => print!("Battery: error: {}", x)
 }
 #+end_src
+
+Returns ~BatteryLife~.
+#+begin_src rust
+pub struct BatteryLife {
+    pub remaining_capacity: f32,
+    pub remaining_time: Duration,
+}
+#+end_src
 * Swap
 | FreeBSD | Linux | OpenBSD | Window | MacOS | NetBSD |
 |---------+-------+---------+--------+-------+--------|
@@ -118,6 +139,26 @@ match sys.swap() {
                          saturating_sub_bytes(swap.total, swap.free),
                          swap.total, swap.total.as_u64(), swap.platform_swap),
     Err(x) => println!("Swap: error: {}", x)
+}
+#+end_src
+
+Returns ~Swap~.
+#+begin_src rust
+pub struct Swap {
+    pub total: ByteSize,
+    pub free: ByteSize,
+    pub platform_swap: PlatformSwap,
+}
+pub type PlatformSwap = PlatformMemory;
+pub struct PlatformMemory {
+    pub load: u32,
+    pub total_phys: ByteSize,
+    pub avail_phys: ByteSize,
+    pub total_pagefile: ByteSize,
+    pub avail_pagefile: ByteSize,
+    pub total_virt: ByteSize,
+    pub avail_virt: ByteSize,
+    pub avail_ext: ByteSize,
 }
 #+end_src
 * Disk mounts
@@ -173,24 +214,7 @@ match sys.block_device_statistics() {
     Err(x) => println!("Block statistics error: {}", x)
 }
 #+end_src
-* Network interfaces
-| FreeBSD | Linux | OpenBSD | Window | MacOS | NetBSD |
-|---------+-------+---------+--------+-------+--------|
-| ❌      | ❌    | ❌      | ❌     | ❌    | ❌     |
-
-#+begin_src rust
-let sys = System::new();
-match sys.networks() {
-    Ok(netifs) => {
-        println!("Networks:");
-        for netif in netifs.values() {
-            println!("{} ({:?})", netif.name, netif.addrs);
-        }
-    }
-    Err(x) => println!("Networks: error: {}", x)
-}
-#+end_src
-* Network traffic statistics
+* Network interfaces and traffic statistics
 | FreeBSD | Linux | OpenBSD | Window | MacOS | NetBSD |
 |---------+-------+---------+--------+-------+--------|
 | ❌      | ❌    | ❌      | ❌     | ❌    | ❌     |
@@ -201,10 +225,37 @@ match sys.networks() {
     Ok(netifs) => {
         println!("Network interface statistics:");
         for netif in netifs.values() {
+            //Interfaces
+            println!("{} ({:?})", netif.name, netif.addrs);
+            //Statistics
             println!("{} statistics: ({:?})", netif.name, sys.network_stats(&netif.name));
         }
     }
     Err(x) => println!("Networks: error: {}", x)
+}
+#+end_src
+
+~networks()~ returns ~Network~.
+#+begin_src rust
+pub struct Network {
+    pub name: String,
+    pub addrs: Vec<NetworkAddrs>,
+}
+pub struct NetworkAddrs {
+    pub addr: IpAddr,
+    pub netmask: IpAddr,
+}
+#+end_src
+
+~network_stats()~ returns ~NetworkStats~.
+#+begin_src rust
+pub struct NetworkStats {
+    pub rx_bytes: ByteSize,
+    pub tx_bytes: ByteSize,
+    pub rx_packets: u64,
+    pub tx_packets: u64,
+    pub rx_errors: u64,
+    pub tx_errors: u64,
 }
 #+end_src
 * Socket info
@@ -219,4 +270,15 @@ match sys.socket_stats() {
     Err(x) => println!("System socket statistics: error: {}", x)
 }
 #+end_src
-*
+
+Returns ~SocketStats~.
+
+#+begin_src rust
+pub struct SocketStats {
+    pub tcp_sockets_in_use: usize,
+    pub tcp_sockets_orphaned: usize,
+    pub udp_sockets_in_use: usize,
+    pub tcp6_sockets_in_use: usize,
+    pub udp6_sockets_in_use: usize,
+}
+#+end_src
