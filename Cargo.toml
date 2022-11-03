@@ -1,14 +1,14 @@
 [package]
 name = "systemstat"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2018"
 authors = [ "Val Packett <val@packett.cool>" ]
 keywords = [ "System", "Info" ]
 description = "Get system information/statistics in a cross-platform way"
 license = "Unlicense"
 readme = "README.md"
-homepage = "https://github.com/unrelentingtech/systemstat"
-repository = "https://github.com/unrelentingtech/systemstat"
+homepage = "https://github.com/valpackett/systemstat"
+repository = "https://github.com/valpackett/systemstat"
 
 [dependencies]
 time = "0.3.9"

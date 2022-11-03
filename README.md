@@ -31,7 +31,7 @@ Supported platforms (roughly ordered by completeness of support):
 
 ## Usage
 
-See [examples/info.rs](https://github.com/unrelentingtech/systemstat/blob/master/examples/info.rs).
+See [examples/info.rs](https://github.com/valpackett/systemstat/blob/master/examples/info.rs).
 
 ## Contributing
 
