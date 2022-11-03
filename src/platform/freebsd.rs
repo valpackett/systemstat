@@ -111,7 +111,7 @@ impl Platform for PlatformImpl {
     fn boot_time(&self) -> io::Result<OffsetDateTime> {
         let mut data: timeval = unsafe { mem::zeroed() };
         sysctl!(KERN_BOOTTIME, &mut data, mem::size_of::<timeval>());
-        let ts = OffsetDateTime::from_unix_timestamp(data.tv_sec).expect("unix timestamp should be within range") + Duration::from_nanos(data.tv_usec as u64);
+        let ts = OffsetDateTime::from_unix_timestamp(data.tv_sec.into()).expect("unix timestamp should be within range") + Duration::from_nanos(data.tv_usec as u64);
         Ok(ts)
     }
 
