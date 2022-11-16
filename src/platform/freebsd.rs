@@ -78,6 +78,10 @@ impl Platform for PlatformImpl {
                                .collect::<Vec<_>>()))))
     }
 
+    fn cpu_time(&self) -> io::Result<Vec<CpuTime>> {
+        measure_cpu()
+    }
+
     fn load_average(&self) -> io::Result<LoadAverage> {
         unix::load_average()
     }
