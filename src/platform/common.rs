@@ -27,6 +27,9 @@ pub trait Platform {
                 }))))
     }
 
+    /// Returns a vector of CPU time statistics, one object per CPU (core).
+    fn cpu_time(&self) -> io::Result<Vec<CpuTime>>;
+
     /// Returns a load average object.
     fn load_average(&self) -> io::Result<LoadAverage>;
 
