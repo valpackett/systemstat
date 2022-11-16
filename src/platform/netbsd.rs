@@ -47,6 +47,10 @@ impl Platform for PlatformImpl {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 
+    fn cpu_time(&self) -> io::Result<Vec<CpuTime>> {
+        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+    }
+
     fn load_average(&self) -> io::Result<LoadAverage> {
         unix::load_average()
     }
