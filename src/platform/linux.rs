@@ -534,6 +534,10 @@ impl Platform for PlatformImpl {
         })
     }
 
+    fn cpu_time(&self) -> io::Result<Vec<CpuTime>> {
+        cpu_time()
+    }
+
     fn load_average(&self) -> io::Result<LoadAverage> {
         unix::load_average()
     }
