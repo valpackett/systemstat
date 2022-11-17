@@ -131,7 +131,7 @@ impl CPULoad {
     derive(Serialize, Deserialize),
     serde(crate = "the_serde")
 )]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct CpuTime {
     pub user: usize,
     pub nice: usize,
