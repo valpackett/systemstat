@@ -4,10 +4,10 @@
 
 pub use bytesize::ByteSize;
 pub use std::collections::BTreeMap;
-use std::io;
 pub use std::net::{Ipv4Addr, Ipv6Addr};
 use std::ops::Sub;
 pub use std::time::Duration;
+use std::{io, ops::Add};
 pub use time::OffsetDateTime;
 
 #[cfg(feature = "serde")]
@@ -153,6 +153,22 @@ impl<'a> Sub<&'a CpuTime> for CpuTime {
             interrupt: self.interrupt.saturating_sub(rhs.interrupt),
             idle: self.idle.saturating_sub(rhs.idle),
             other: self.other.saturating_sub(rhs.other),
+        }
+    }
+}
+
+impl<'a> Add<&'a CpuTime> for CpuTime {
+    type Output = CpuTime;
+
+    #[inline(always)]
+    fn add(self, rhs: &CpuTime) -> CpuTime {
+        CpuTime {
+            user: self.user.saturating_add(rhs.user),
+            nice: self.nice.saturating_add(rhs.nice),
+            system: self.system.saturating_add(rhs.system),
+            interrupt: self.interrupt.saturating_add(rhs.interrupt),
+            idle: self.idle.saturating_add(rhs.idle),
+            other: self.other.saturating_add(rhs.other),
         }
     }
 }
