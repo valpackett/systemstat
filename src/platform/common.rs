@@ -33,24 +33,7 @@ pub trait Platform {
     /// Returns a CPU time statistics object, sum over all CPUs (cores).
     fn cpu_time_aggregate(&self) -> io::Result<CpuTime> {
         let measurement = self.cpu_time()?;
-        Ok(measurement.into_iter().fold(
-            CpuTime {
-                user: 0,
-                nice: 0,
-                system: 0,
-                interrupt: 0,
-                idle: 0,
-                other: 0,
-            },
-            |acc, x| CpuTime {
-                user: acc.user + x.user,
-                nice: acc.nice + x.nice,
-                system: acc.system + x.system,
-                interrupt: acc.interrupt + x.interrupt,
-                idle: acc.idle + x.idle,
-                other: acc.other + x.other,
-            },
-        ))
+        Ok(measurement.iter().fold(Default::default(), |acc, x| acc + x))
     }
 
     /// Returns a load average object.
