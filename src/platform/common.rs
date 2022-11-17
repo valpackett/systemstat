@@ -30,7 +30,7 @@ pub trait Platform {
     /// Returns a vector of CPU time statistics, one object per CPU (core).
     fn cpu_time(&self) -> io::Result<Vec<CpuTime>>;
 
-    /// Returns a vector of CPU time statistics, sum over all CPUs (cores).
+    /// Returns a CPU time statistics object, sum over all CPUs (cores).
     fn cpu_time_aggregate(&self) -> io::Result<CpuTime> {
         let measurement = self.cpu_time()?;
         Ok(measurement.into_iter().fold(
