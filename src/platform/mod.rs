@@ -56,7 +56,7 @@ mod tests {
         let load = load.done().unwrap();
         assert!(!load.is_empty());
         for cpu in load.iter() {
-            let sum = cpu.user + cpu.nice + cpu.system + cpu.interrupt + cpu.idle;
+            let sum = cpu.user + cpu.nice + cpu.system + cpu.interrupt + cpu.idle + cpu.platform.sum();
             assert!(sum > 0.95 && sum < 1.05);
         }
     }
@@ -66,7 +66,7 @@ mod tests {
         let cpu = PlatformImpl::new().cpu_load_aggregate().unwrap();
         thread::sleep(Duration::from_millis(300));
         let cpu = cpu.done().unwrap();
-        let sum = cpu.user + cpu.nice + cpu.system + cpu.interrupt + cpu.idle;
+        let sum = cpu.user + cpu.nice + cpu.system + cpu.interrupt + cpu.idle + cpu.platform.sum();
         assert!(sum > 0.95 && sum < 1.05);
     }
 

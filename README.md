@@ -1,5 +1,6 @@
 [![crates.io](https://img.shields.io/crates/v/systemstat.svg)](https://crates.io/crates/systemstat)
 [![API Docs](https://docs.rs/systemstat/badge.svg)](https://docs.rs/systemstat/)
+[![CI status](https://ci.codeberg.org/api/badges/valpackett/systemstat/status.svg)](https://ci.codeberg.org/valpackett/systemstat)
 [![unlicense](https://img.shields.io/badge/un-license-green.svg?style=flat)](https://unlicense.org)
 
 # systemstat

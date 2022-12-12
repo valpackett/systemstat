@@ -1,0 +1,20 @@
+pipeline:
+  test:
+    image: rust:alpine
+    pull: true
+    commands:
+    - apk add musl-dev
+    - RUST_BACKTRACE=1 cargo run --example info
+    - RUST_BACKTRACE=1 cargo test -- --nocapture
+    - RUST_BACKTRACE=1 cargo test -F serde -- --nocapture
+    - rustup target add aarch64-apple-darwin aarch64-pc-windows-msvc aarch64-unknown-linux-gnu i686-pc-windows-gnu i686-unknown-freebsd i686-unknown-linux-gnu x86_64-pc-windows-gnu x86_64-unknown-freebsd x86_64-unknown-linux-musl x86_64-unknown-netbsd
+    - cargo check --target aarch64-apple-darwin
+    - cargo check --target aarch64-pc-windows-msvc
+    - cargo check --target aarch64-unknown-linux-gnu
+    - cargo check --target i686-pc-windows-gnu
+    - cargo check --target i686-unknown-freebsd
+    - cargo check --target i686-unknown-linux-gnu
+    - cargo check --target x86_64-pc-windows-gnu
+    - cargo check --target x86_64-unknown-freebsd
+    - cargo check --target x86_64-unknown-linux-musl
+    - cargo check --target x86_64-unknown-netbsd

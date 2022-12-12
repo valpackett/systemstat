@@ -95,6 +95,18 @@ impl PlatformCpuLoad {
     pub fn from(_input: f32) -> Self {
         PlatformCpuLoad {}
     }
+
+    #[cfg(target_os = "linux")]
+    #[inline(always)]
+    pub fn sum(&self) -> f32 {
+        self.iowait
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    #[inline(always)]
+    pub fn sum(&self) -> f32 {
+        0.0
+    }
 }
 
 #[cfg_attr(
