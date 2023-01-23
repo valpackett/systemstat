@@ -1,6 +1,6 @@
 [package]
 name = "systemstat"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2018"
 authors = [ "Val Packett <val@packett.cool>" ]
 keywords = [ "System", "Info" ]
