@@ -594,12 +594,17 @@ impl Platform for PlatformImpl {
                 .map(|t| t == "Battery")
                 .unwrap_or(false)
             {
-                full += value_from_file::<i32>(&(s.to_string() + "/energy_full"))
-                    .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_full")))?;
-                now += value_from_file::<i32>(&(s.to_string() + "/energy_now"))
-                    .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_now")))?;
-                current += value_from_file::<i32>(&(s.to_string() + "/power_now"))
-                    .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/current_now")))?;
+                let f = value_from_file::<i32>(&(s.to_string() + "/energy_full"))
+                    .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_full")));
+                let n = value_from_file::<i32>(&(s.to_string() + "/energy_now"))
+                    .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/charge_now")));
+                let c = value_from_file::<i32>(&(s.to_string() + "/power_now"))
+                    .or_else(|_| value_from_file::<i32>(&(s.to_string() + "/current_now")));
+                if let (Ok(f), Ok(n), Ok(c)) = (f, n, c) {
+                    full += f;
+                    now += n;
+                    current += c;
+                }
             }
         }
         if full != 0 {
