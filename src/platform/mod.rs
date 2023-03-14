@@ -43,6 +43,11 @@ pub mod linux;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub use self::linux::PlatformImpl;
 
+#[cfg(any(target_os = "illumos", target_os = "solaris"))]
+pub mod illumos;
+#[cfg(any(target_os = "illumos", target_os = "solaris"))]
+pub use self::illumos::PlatformImpl;
+
 #[cfg(test)]
 mod tests {
     use super::*;
