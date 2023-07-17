@@ -1,7 +1,8 @@
-[![crates.io](https://img.shields.io/crates/v/systemstat.svg)](https://crates.io/crates/systemstat)
+[![crates.io](https://img.shields.io/crates/v/systemstat?logo=rust) ![](https://img.shields.io/crates/d/systemstat)](https://crates.io/crates/systemstat)
 [![API Docs](https://docs.rs/systemstat/badge.svg)](https://docs.rs/systemstat/)
 [![CI status](https://ci.codeberg.org/api/badges/valpackett/systemstat/status.svg)](https://ci.codeberg.org/valpackett/systemstat)
 [![unlicense](https://img.shields.io/badge/un-license-green.svg?style=flat)](https://unlicense.org)
+[![Support me on Patreon](https://img.shields.io/badge/dynamic/json?logo=patreon&color=%23e85b46&label=support%20me%20on%20patreon&query=data.attributes.patron_count&suffix=%20patrons&url=https%3A%2F%2Fwww.patreon.com%2Fapi%2Fcampaigns%2F9395291)](https://www.patreon.com/valpackett)
 
 # systemstat
 
