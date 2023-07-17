@@ -709,16 +709,33 @@ impl Platform for PlatformImpl {
     }
 
     fn cpu_temp(&self) -> io::Result<f32> {
-        read_file("/sys/class/thermal/thermal_zone0/temp")
-            .or(read_file("/sys/class/hwmon/hwmon0/temp1_input"))
-            .and_then(|data| match data.trim().parse::<f32>() {
-                Ok(x) => Ok(x),
-                Err(_) => Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    "Could not parse float",
-                )),
-            })
-            .map(|num| num / 1000.0)
+        let mut mons = fs::read_dir("/sys/class/hwmon")?;
+        let mon_cpu = mons.find_map(|file| match file {
+            Ok(file) => {
+                let mon_name = read_file(&file.path().join("name").as_path().to_str()?).ok()?;
+                match mon_name.trim() {
+                    "coretemp" => Some(file.path().join("temp1_input")),
+                    _ => None,
+                }
+            }
+            Err(_) => None,
+        });
+
+        match mon_cpu {
+            Some(mon_cpu) => read_file(mon_cpu.as_path().to_str().unwrap())
+                .and_then(|data| match data.trim().parse::<f32>() {
+                    Ok(x) => Ok(x),
+                    Err(_) => Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        "Could not parse float",
+                    )),
+                })
+                .map(|num| num / 1000.0),
+            None => Err(io::Error::new(
+                io::ErrorKind::Other,
+                "Could not find CPU temp",
+            )),
+        }
     }
 
     fn socket_stats(&self) -> io::Result<SocketStats> {
