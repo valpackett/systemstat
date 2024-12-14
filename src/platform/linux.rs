@@ -67,8 +67,8 @@ where
     delimited(multispace0, inner, multispace0)
 }
 
-/// Parse an unsigned integer out of a string, surrounded by whitespace
-fn usize_s(input: &str) -> IResult<&str, usize> {
+/// Parse a number out of a string, surrounded by whitespace
+fn num<T: str::FromStr>(input: &str) -> IResult<&str, T> {
     map_res(
         map_res(map(ws(digit1), str::as_bytes), str::from_utf8),
         str::FromStr::from_str,
@@ -85,7 +85,7 @@ fn proc_stat_cpu_time(input: &str) -> IResult<&str, CpuTime> {
     map(
         preceded(
             ws(proc_stat_cpu_prefix),
-            tuple((usize_s, usize_s, usize_s, usize_s, usize_s, usize_s)),
+            tuple((num, num, num, num, num, num)),
         ),
         |(user, nice, system, idle, iowait, irq)| CpuTime {
             user,
@@ -164,8 +164,8 @@ fn cpu_time() -> io::Result<Vec<CpuTime>> {
 // Parse a `/proc/meminfo` line into (key, ByteSize)
 fn proc_meminfo_line(input: &str) -> IResult<&str, (&str, ByteSize)> {
     complete(map(
-        tuple((take_until(":"), delimited(tag(":"), usize_s, ws(tag("kB"))))),
-        |(key, value)| (key, ByteSize::kib(value as u64)),
+        tuple((take_until(":"), delimited(tag(":"), num, ws(tag("kB"))))),
+        |(key, value)| (key, ByteSize::kib(value)),
     ))(input)
 }
 
@@ -365,9 +365,9 @@ fn proc_net_sockstat(input: &str) -> IResult<&str, ProcNetSockStat> {
         preceded(
             not_line_ending,
             tuple((
-                preceded(ws(tag("TCP: inuse")), usize_s),
-                delimited(ws(tag("orphan")), usize_s, not_line_ending),
-                preceded(ws(tag("UDP: inuse")), usize_s),
+                preceded(ws(tag("TCP: inuse")), num),
+                delimited(ws(tag("orphan")), num, not_line_ending),
+                preceded(ws(tag("UDP: inuse")), num),
             )),
         ),
         |(tcp_in_use, tcp_orphaned, udp_in_use)| ProcNetSockStat {
@@ -403,8 +403,8 @@ struct ProcNetSockStat6 {
 fn proc_net_sockstat6(input: &str) -> IResult<&str, ProcNetSockStat6> {
     map(
         ws(tuple((
-            preceded(tag("TCP6: inuse"), usize_s),
-            preceded(tag("UDP6: inuse"), usize_s),
+            preceded(tag("TCP6: inuse"), num),
+            preceded(tag("UDP6: inuse"), num),
         ))),
         |(tcp_in_use, udp_in_use)| ProcNetSockStat6 {
             tcp_in_use,
@@ -452,8 +452,20 @@ fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
 fn proc_diskstats_line(input: &str) -> IResult<&str, BlockDeviceStats> {
     map(
         ws(tuple((
-            usize_s, usize_s, word_s, usize_s, usize_s, usize_s, usize_s, usize_s, usize_s,
-            usize_s, usize_s, usize_s, usize_s, usize_s,
+            num::<usize>,
+            num::<usize>,
+            word_s,
+            num,
+            num,
+            num,
+            num,
+            num,
+            num,
+            num,
+            num,
+            num,
+            num,
+            num,
         ))),
         |(
             _major_number,
