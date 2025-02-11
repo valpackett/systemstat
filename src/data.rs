@@ -283,7 +283,7 @@ pub struct PlatformMemory {
     pub swonly: ByteSize,
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -339,7 +339,7 @@ pub struct Memory {
 ))]
 pub type PlatformSwap = PlatformMemory;
 
-#[cfg(any(target_os = "macos", target_os = "freebsd"))]
+#[cfg(any(target_vendor = "apple", target_os = "freebsd"))]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
