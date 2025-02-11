@@ -14,7 +14,7 @@ pub mod unix;
     target_os = "freebsd",
     target_os = "openbsd",
     target_os = "netbsd",
-    target_os = "macos"
+    target_vendor = "apple"
 ))]
 pub mod bsd;
 
@@ -33,9 +33,9 @@ pub mod netbsd;
 #[cfg(target_os = "netbsd")]
 pub use self::netbsd::PlatformImpl;
 
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 pub mod macos;
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 pub use self::macos::PlatformImpl;
 
 #[cfg(any(target_os = "linux", target_os = "android"))]

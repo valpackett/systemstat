@@ -6,7 +6,7 @@
         target_os = "freebsd",
         target_os = "openbsd",
         target_os = "netbsd",
-        target_os = "macos"
+        target_vendor = "apple"
     ),
     macro_use
 )]
