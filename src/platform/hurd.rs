@@ -2,7 +2,7 @@ use super::common::*;
 use super::unix;
 use crate::data::*;
 use crate::platform::procfs;
-use std::io;
+use std::{io, path};
 
 pub struct PlatformImpl;
 
@@ -50,6 +50,10 @@ impl Platform for PlatformImpl {
 
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
         procfs::mounts()
+    }
+
+    fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem> {
+        procfs::mount_at(path)
     }
 
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
