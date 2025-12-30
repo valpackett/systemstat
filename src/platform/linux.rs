@@ -1,16 +1,9 @@
 use super::common::*;
+use crate::platform::procfs;
 use crate::reader_utils::read_file;
-use crate::reader_utils::value_from_file;
 use super::unix;
 use crate::data::*;
-use nom::bytes::complete::tag;
-use nom::character::complete::not_line_ending;
-use nom::combinator::{map, map_res};
-use nom::multi::{many0, many1};
-use nom::sequence::{delimited, preceded, tuple};
-use nom::{IResult, Parser};
-use std::io::Read;
-use std::path::Path;
+use libc::{c_long, c_schar, c_uint, c_ulong, c_ushort};
 use std::str;
 use std::time::Duration;
 use std::{fs, io, mem, path};
@@ -58,9 +51,9 @@ impl Platform for PlatformImpl {
     }
 
     fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>> {
-        cpu_time().map(|times| {
+        procfs::cpu_time().map(|times| {
             DelayedMeasurement::new(Box::new(move || {
-                cpu_time().map(|delay_times| {
+                procfs::cpu_time().map(|delay_times| {
                     delay_times
                         .iter()
                         .zip(times.iter())
@@ -176,34 +169,11 @@ impl Platform for PlatformImpl {
     }
 
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
-        read_file("/proc/mounts")
-            .and_then(|data| {
-                proc_mounts(&data)
-                    .map(|(_, res)| res)
-                    .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
-            })
-            .map(|mounts| {
-                mounts
-                    .into_iter()
-                    .filter_map(|mount| stat_mount(mount).ok())
-                    .collect()
-            })
+        procfs::mounts()
     }
 
     fn mount_at<P: AsRef<path::Path>>(&self, path: P) -> io::Result<Filesystem> {
-        read_file("/proc/mounts")
-            .and_then(|data| {
-                proc_mounts(&data)
-                    .map(|(_, res)| res)
-                    .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
-            })
-            .and_then(|mounts| {
-                mounts
-                    .into_iter()
-                    .find(|mount| Path::new(&mount.target) == path.as_ref())
-                    .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No such mount"))
-            })
-            .and_then(stat_mount)
+        procfs::mount_at(path)
     }
 
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
@@ -259,31 +229,14 @@ impl Platform for PlatformImpl {
     }
 
     fn socket_stats(&self) -> io::Result<SocketStats> {
-        let sockstats: ProcNetSockStat = read_file("/proc/net/sockstat").and_then(|data| {
-            proc_net_sockstat(&data)
-                .map(|(_, res)| res)
-                .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
-        })?;
-        let sockstats6: ProcNetSockStat6 = read_file("/proc/net/sockstat6").and_then(|data| {
-            proc_net_sockstat6(&data)
-                .map(|(_, res)| res)
-                .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
-        })?;
-        let result: SocketStats = SocketStats {
-            tcp_sockets_in_use: sockstats.tcp_in_use,
-            tcp_sockets_orphaned: sockstats.tcp_orphaned,
-            udp_sockets_in_use: sockstats.udp_in_use,
-            tcp6_sockets_in_use: sockstats6.tcp_in_use,
-            udp6_sockets_in_use: sockstats6.udp_in_use,
-        };
-        Ok(result)
+        procfs::socket_stats()
     }
 }
 
 impl PlatformMemory {
     // Retrieve platform memory information
     fn new() -> io::Result<Self> {
-        memory_stats()
+        procfs::memory_stats()
             .or_else(|_| {
                 // If there's no procfs, e.g. in a chroot without mounting it or something
                 let mut meminfo = BTreeMap::new();

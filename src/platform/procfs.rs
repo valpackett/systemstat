@@ -13,7 +13,7 @@ use nom::sequence::{delimited, preceded, tuple};
 use nom::{IResult, Parser};
 
 use std::str;
-use std::{io, mem};
+use std::{io, mem, path};
 
 /// A combinator that takes a parser `inner` and produces a parser that also consumes both leading and
 /// trailing whitespace, returning the output of `inner`.
@@ -348,6 +348,22 @@ pub fn mounts() -> io::Result<Vec<Filesystem>> {
     })
 }
 
+pub fn mount_at<P: AsRef<path::Path>>(path: P) -> io::Result<Filesystem> {
+        read_file("/proc/mounts")
+            .and_then(|data| {
+                proc_mounts(&data)
+                    .map(|(_, res)| res)
+                    .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
+            })
+            .and_then(|mounts| {
+                mounts
+                    .into_iter()
+                    .find(|mount| path::Path::new(&mount.target) == path.as_ref())
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No such mount"))
+            })
+            .and_then(stat_mount)
+}
+
 /// `/proc/net/sockstat` data
 struct ProcNetSockStat {
     tcp_in_use: usize,
@@ -420,6 +436,27 @@ FRAG6: inuse 0 memory 0
     let result = proc_net_sockstat6(input).unwrap().1;
     assert_eq!(result.tcp_in_use, 3);
     assert_eq!(result.udp_in_use, 1);
+}
+
+pub fn socket_stats() -> io::Result<SocketStats> {
+        let sockstats: ProcNetSockStat = read_file("/proc/net/sockstat").and_then(|data| {
+            proc_net_sockstat(&data)
+                .map(|(_, res)| res)
+                .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
+        })?;
+        let sockstats6: ProcNetSockStat6 = read_file("/proc/net/sockstat6").and_then(|data| {
+            proc_net_sockstat6(&data)
+                .map(|(_, res)| res)
+                .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
+        })?;
+        let result: SocketStats = SocketStats {
+            tcp_sockets_in_use: sockstats.tcp_in_use,
+            tcp_sockets_orphaned: sockstats.tcp_orphaned,
+            udp_sockets_in_use: sockstats.udp_in_use,
+            tcp6_sockets_in_use: sockstats6.tcp_in_use,
+            udp6_sockets_in_use: sockstats6.udp_in_use,
+        };
+        Ok(result)
 }
 
 // Parse a line of `/proc/diskstats`
