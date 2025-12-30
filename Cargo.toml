@@ -17,7 +17,7 @@ bytesize = "1.1"
 libc = "0.2"
 the_serde = { package = "serde", version = "1.0", features = ["derive"], optional = true }
 
-[target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
+[target.'cfg(any(target_os = "linux", target_os = "android", target_os = "hurd"))'.dependencies]
 nom = "7.0"
 
 [target.'cfg(windows)'.dependencies.winapi]
