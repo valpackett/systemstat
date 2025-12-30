@@ -17,6 +17,7 @@ extern crate the_serde as serde;
 
 pub mod data;
 pub mod platform;
+mod reader_utils;
 
 pub use self::data::*;
 pub use self::platform::Platform;

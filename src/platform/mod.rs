@@ -11,6 +11,12 @@ pub use self::windows::PlatformImpl;
 pub mod unix;
 
 #[cfg(any(
+    target_os = "linux",
+    target_os = "hurd",
+))]
+mod procfs;
+
+#[cfg(any(
     target_os = "freebsd",
     target_os = "openbsd",
     target_os = "netbsd",
@@ -22,6 +28,11 @@ pub mod bsd;
 pub mod freebsd;
 #[cfg(target_os = "freebsd")]
 pub use self::freebsd::PlatformImpl;
+
+#[cfg(target_os = "hurd")]
+pub mod hurd;
+#[cfg(target_os = "hurd")]
+pub use self::hurd::PlatformImpl;
 
 #[cfg(target_os = "openbsd")]
 pub mod openbsd;

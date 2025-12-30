@@ -305,7 +305,7 @@ pub struct PlatformMemory {
     pub uncompressed_in_compressor: ByteSize,
 }
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "hurd"))]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -335,7 +335,8 @@ pub struct Memory {
     target_os = "openbsd",
     target_os = "netbsd",
     target_os = "illumos",
-    target_os = "solaris"
+    target_os = "solaris",
+    target_os = "hurd",
 ))]
 pub type PlatformSwap = PlatformMemory;
 
