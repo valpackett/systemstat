@@ -88,27 +88,7 @@ impl Platform for PlatformImpl {
     }
 
     fn boot_time(&self) -> io::Result<OffsetDateTime> {
-        read_file("/proc/stat").and_then(|data| {
-            data.lines()
-                .find(|line| line.starts_with("btime "))
-                .ok_or(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "Could not find btime in /proc/stat",
-                ))
-                .and_then(|line| {
-                    let timestamp_str = line
-                        .strip_prefix("btime ")
-                        .expect("line starts with 'btime '");
-                    timestamp_str
-                        .parse::<i64>()
-                        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
-                        .and_then(|timestamp| {
-                            OffsetDateTime::from_unix_timestamp(timestamp).map_err(|err| {
-                                io::Error::new(io::ErrorKind::InvalidData, err.to_string())
-                            })
-                        })
-                })
-        })
+        procfs::boot_time()
     }
 
     fn battery_life(&self) -> io::Result<BatteryLife> {
@@ -177,17 +157,7 @@ impl Platform for PlatformImpl {
     }
 
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
-        let mut result: BTreeMap<String, BlockDeviceStats> = BTreeMap::new();
-        let stats: Vec<BlockDeviceStats> = read_file("/proc/diskstats").and_then(|data| {
-            procfs::proc_diskstats(&data)
-                .map(|(_, res)| res)
-                .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))
-        })?;
-
-        for blkstats in stats {
-            result.entry(blkstats.name.clone()).or_insert(blkstats);
-        }
-        Ok(result)
+        procfs::block_device_statistics()
     }
 
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {

@@ -48,6 +48,10 @@ impl Platform for PlatformImpl {
         Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
     }
 
+    fn boot_time(&self) -> io::Result<OffsetDateTime> {
+        procfs::boot_time()
+    }
+
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
         procfs::mounts()
     }
@@ -57,7 +61,7 @@ impl Platform for PlatformImpl {
     }
 
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        procfs::block_device_statistics()
     }
 
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
@@ -73,7 +77,7 @@ impl Platform for PlatformImpl {
     }
 
     fn socket_stats(&self) -> io::Result<SocketStats> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        procfs::socket_stats()
     }
 }
 
