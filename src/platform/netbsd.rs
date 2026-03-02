@@ -2,7 +2,7 @@
 use super::common::*;
 use super::unix;
 use crate::data::*;
-use libc::{c_int, c_void, sysctl, CTL_VM};
+use libc::{c_int, c_void, sysctl, CTL_HW, CTL_KERN, CTL_VM, HW_NCPU, KERN_CP_TIME};
 use std::{io, mem, path, ptr};
 
 pub struct PlatformImpl;
@@ -44,7 +44,12 @@ impl Platform for PlatformImpl {
     }
 
     fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        let loads = measure_cpu()?;
+        Ok(DelayedMeasurement::new(
+                Box::new(move || Ok(loads.iter()
+                               .zip(measure_cpu()?.iter())
+                               .map(|(prev, now)| (*now - prev).to_cpuload())
+                               .collect::<Vec<_>>()))))
     }
 
     fn load_average(&self) -> io::Result<LoadAverage> {
@@ -143,6 +148,41 @@ impl PlatformMemory {
             total: self.sw,
             free: saturating_sub_bytes(self.sw, self.swinuse),
             platform_swap: self,
+        }
+    }
+}
+
+fn measure_cpu() -> io::Result<Vec<CpuTime>> {
+    let mut ncpu: usize = 0;
+    sysctl!([CTL_HW, HW_NCPU], &mut ncpu, mem::size_of::<usize>());
+    let mut data: Vec<cp_time> = Vec::with_capacity(ncpu);
+    unsafe { data.set_len(ncpu) };
+    for i in 0..ncpu {
+        let mib = [CTL_KERN, KERN_CP_TIME, i as c_int];
+        sysctl!(mib, &mut data[i], mem::size_of::<cp_time>());
+    }
+    Ok(data.into_iter().map(|cpu| cpu.into()).collect())
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct cp_time {
+    user: u64,
+    nice: u64,
+    system: u64,
+    interrupt: u64,
+    idle: u64,
+}
+
+impl From<cp_time> for CpuTime {
+    fn from(cpu: cp_time) -> CpuTime {
+        CpuTime {
+            user: cpu.user as usize,
+            nice: cpu.nice as usize,
+            system: cpu.system as usize,
+            interrupt: cpu.interrupt as usize,
+            idle: cpu.idle as usize,
+            other: 0,
         }
     }
 }

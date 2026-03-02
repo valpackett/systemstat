@@ -1,9 +1,14 @@
 use std::{io, ptr, mem::{self, MaybeUninit}, ffi, slice};
 use libc::{
-    c_int, c_void, host_statistics64, mach_host_self, size_t, statfs, sysconf, sysctl,
-    sysctlnametomib, timeval, vm_statistics64, xsw_usage, CTL_VM, HOST_VM_INFO64,
-    HOST_VM_INFO64_COUNT, KERN_SUCCESS, VM_SWAPUSAGE, _SC_PHYS_PAGES,
+    c_int, c_void, host_processor_info, host_statistics64, mach_msg_type_number_t,
+    natural_t, processor_cpu_load_info, processor_info_array_t, size_t, statfs,
+    sysconf, sysctl, sysctlnametomib, timeval, vm_address_t, vm_deallocate, vm_size_t,
+    vm_statistics64, xsw_usage, CTL_VM, CPU_STATE_IDLE, CPU_STATE_NICE, CPU_STATE_SYSTEM,
+    CPU_STATE_USER, HOST_VM_INFO64, HOST_VM_INFO64_COUNT, KERN_SUCCESS,
+    PROCESSOR_CPU_LOAD_INFO, VM_SWAPUSAGE, _SC_PHYS_PAGES,
 };
+use mach2::mach_init::mach_host_self;
+use mach2::traps::mach_task_self;
 use crate::data::*;
 use super::common::*;
 use super::unix;
@@ -30,7 +35,7 @@ macro_rules! sysctl {
             let mut size = $size;
             if unsafe { sysctl(&mib[0] as *const _ as *mut _, mib.len() as u32,
                                $dataptr as *mut _ as *mut c_void, &mut size, ptr::null_mut(), 0) } != 0 && $shouldcheck {
-                return Err(io::Error::new(io::ErrorKind::Other, "sysctl() failed"))
+                return Err(io::Error::other("sysctl() failed"))
             }
             size
         }
@@ -53,7 +58,12 @@ impl Platform for PlatformImpl {
     }
 
     fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        let loads = measure_cpu()?;
+        Ok(DelayedMeasurement::new(
+                Box::new(move || Ok(loads.iter()
+                               .zip(measure_cpu()?.iter())
+                               .map(|(prev, now)| (*now - prev).to_cpuload())
+                               .collect::<Vec<_>>()))))
     }
 
     fn load_average(&self) -> io::Result<LoadAverage> {
@@ -64,10 +74,7 @@ impl Platform for PlatformImpl {
         // Get Total Memory
         let total = match unsafe { sysconf(_SC_PHYS_PAGES) } {
             -1 => {
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    "sysconf(_SC_PHYS_PAGES) failed",
-                ))
+                return Err(io::Error::other("sysconf(_SC_PHYS_PAGES) failed"))
             }
             n => n as u64,
         };
@@ -87,10 +94,7 @@ impl Platform for PlatformImpl {
         };
 
         if ret != KERN_SUCCESS {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                "host_statistics64() failed",
-            ));
+            return Err(io::Error::other("host_statistics64() failed"));
         }
         let stat = unsafe { stat.assume_init() };
 
@@ -107,7 +111,7 @@ impl Platform for PlatformImpl {
             external: ByteSize::kib((stat.external_page_count as u64) << *bsd::PAGESHIFT),
             internal: ByteSize::kib((stat.internal_page_count as u64) << *bsd::PAGESHIFT),
             uncompressed_in_compressor: ByteSize::kib(
-                (stat.total_uncompressed_pages_in_compressor as u64) << *bsd::PAGESHIFT,
+                stat.total_uncompressed_pages_in_compressor << *bsd::PAGESHIFT,
             ),
         };
 
@@ -143,30 +147,30 @@ impl Platform for PlatformImpl {
     fn boot_time(&self) -> io::Result<OffsetDateTime> {
         let mut data: timeval = unsafe { mem::zeroed() };
         sysctl!(KERN_BOOTTIME, &mut data, mem::size_of::<timeval>());
-        let ts = OffsetDateTime::from_unix_timestamp(data.tv_sec.into()).expect("unix timestamp should be within range") + Duration::from_nanos(data.tv_usec as u64);
+        let ts = OffsetDateTime::from_unix_timestamp(data.tv_sec).expect("unix timestamp should be within range") + Duration::from_nanos(data.tv_usec as u64);
         Ok(ts)
     }
 
     fn battery_life(&self) -> io::Result<BatteryLife> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        Err(io::Error::other("Not supported"))
     }
 
     fn on_ac_power(&self) -> io::Result<bool> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        Err(io::Error::other("Not supported"))
     }
 
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
         let mut mptr: *mut statfs = ptr::null_mut();
         let len = unsafe { getmntinfo(&mut mptr, 2_i32) };
         if len < 1 {
-            return Err(io::Error::new(io::ErrorKind::Other, "getmntinfo() failed"))
+            return Err(io::Error::other("getmntinfo() failed"))
         }
         let mounts = unsafe { slice::from_raw_parts(mptr, len as usize) };
         Ok(mounts.iter().map(statfs_to_fs).collect::<Vec<_>>())
     }
 
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        Err(io::Error::other("Not supported"))
     }
 
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
@@ -174,16 +178,63 @@ impl Platform for PlatformImpl {
     }
 
     fn network_stats(&self, _interface: &str) -> io::Result<NetworkStats> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        Err(io::Error::other("Not supported"))
     }
 
     fn cpu_temp(&self) -> io::Result<f32> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        Err(io::Error::other("Not supported"))
     }
 
     fn socket_stats(&self) -> io::Result<SocketStats> {
-        Err(io::Error::new(io::ErrorKind::Other, "Not supported"))
+        Err(io::Error::other("Not supported"))
     }
+}
+
+fn measure_cpu() -> io::Result<Vec<CpuTime>> {
+    let mut num_cpus: natural_t = 0;
+    let mut info: processor_info_array_t = ptr::null_mut();
+    let mut info_count: mach_msg_type_number_t = 0;
+
+    let ret = unsafe {
+        host_processor_info(
+            mach_host_self(),
+            PROCESSOR_CPU_LOAD_INFO,
+            &mut num_cpus,
+            &mut info,
+            &mut info_count,
+        )
+    };
+
+    if ret != KERN_SUCCESS {
+        return Err(io::Error::other("host_processor_info() failed"));
+    }
+
+    let loads = unsafe {
+        let cpus = slice::from_raw_parts(
+            info as *const processor_cpu_load_info,
+            num_cpus as usize,
+        );
+        cpus.iter()
+            .map(|cpu| CpuTime {
+                user: cpu.cpu_ticks[CPU_STATE_USER as usize] as usize,
+                nice: cpu.cpu_ticks[CPU_STATE_NICE as usize] as usize,
+                system: cpu.cpu_ticks[CPU_STATE_SYSTEM as usize] as usize,
+                interrupt: 0,
+                idle: cpu.cpu_ticks[CPU_STATE_IDLE as usize] as usize,
+                other: 0,
+            })
+            .collect::<Vec<_>>()
+    };
+
+    unsafe {
+        vm_deallocate(
+            mach_task_self(),
+            info as vm_address_t,
+            info_count as vm_size_t * mem::size_of::<natural_t>() as vm_size_t,
+        );
+    }
+
+    Ok(loads)
 }
 
 fn statfs_to_fs(x: &statfs) -> Filesystem {
