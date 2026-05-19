@@ -10,7 +10,7 @@ pub use self::windows::PlatformImpl;
 #[cfg(unix)]
 pub mod unix;
 
-#[cfg(any(target_os = "linux", target_os = "hurd"))]
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "hurd"))]
 mod procfs;
 
 #[cfg(any(
