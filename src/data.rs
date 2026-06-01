@@ -283,6 +283,9 @@ pub struct PlatformMemory {
     pub swonly: ByteSize,
 }
 
+#[cfg(target_os = "dragonfly")]
+use crate::platform::{PlatformMemory, PlatformSwap};
+
 #[cfg(target_vendor = "apple")]
 #[cfg_attr(
     feature = "serde",

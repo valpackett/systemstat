@@ -17,6 +17,7 @@ mod procfs;
     target_os = "freebsd",
     target_os = "openbsd",
     target_os = "netbsd",
+    target_os = "dragonfly",
     target_vendor = "apple"
 ))]
 pub mod bsd;
@@ -40,6 +41,11 @@ pub use self::openbsd::PlatformImpl;
 pub mod netbsd;
 #[cfg(target_os = "netbsd")]
 pub use self::netbsd::PlatformImpl;
+
+#[cfg(target_os = "dragonfly")]
+pub mod dragonfly;
+#[cfg(target_os = "dragonfly")]
+pub use self::dragonfly::{PlatformImpl, PlatformMemory, PlatformSwap};
 
 #[cfg(target_vendor = "apple")]
 pub mod macos;
