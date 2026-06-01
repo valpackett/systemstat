@@ -29,6 +29,7 @@ Supported platforms (roughly ordered by completeness of support):
 - Windows
 - macOS
 - NetBSD
+- DragonFly BSD
 - *more coming soon*
 
 ## Usage
