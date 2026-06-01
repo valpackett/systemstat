@@ -8,16 +8,15 @@
 //   * boot_time()     -- kern.boottime (uptime() falls out of the default impl)
 //   * mounts()        -- getmntinfo(3)
 //
-// Left as ErrorKind::Unsupported for now. These need hardware/driver-specific
-// sysctls or route/devstat walking, and starship does not consume them:
-//   cpu_temp, battery_life,
-//   block_device_statistics, network_stats, socket_stats
+// Left as ErrorKind::Unsupported for now. These need route/devstat walking or
+// socket-table aggregation, and starship does not consume them:
+//   block_device_statistics, socket_stats
 
 use std::collections::BTreeMap;
 use std::{ffi, io, mem, ptr, slice};
 
 use bytesize::ByteSize;
-use libc::{c_char, c_int, c_long, c_void, statfs, timeval};
+use libc::{c_char, c_int, c_long, c_ulong, c_void, statfs, timeval};
 
 use super::common::*;
 use super::unix;
@@ -27,6 +26,53 @@ use crate::data::*;
 use the_serde::{Deserialize, Serialize};
 
 pub struct PlatformImpl;
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct IfData {
+    ifi_type: u8,
+    ifi_physical: u8,
+    ifi_addrlen: u8,
+    ifi_hdrlen: u8,
+    ifi_recvquota: u8,
+    ifi_xmitquota: u8,
+    ifi_mtu: c_ulong,
+    ifi_metric: c_ulong,
+    ifi_link_state: c_ulong,
+    ifi_baudrate: u64,
+    ifi_ipackets: c_ulong,
+    ifi_ierrors: c_ulong,
+    ifi_opackets: c_ulong,
+    ifi_oerrors: c_ulong,
+    ifi_collisions: c_ulong,
+    ifi_ibytes: c_ulong,
+    ifi_obytes: c_ulong,
+    ifi_imcasts: c_ulong,
+    ifi_omcasts: c_ulong,
+    ifi_iqdrops: c_ulong,
+    ifi_noproto: c_ulong,
+    ifi_hwassist: c_ulong,
+    ifi_oqdrops: c_ulong,
+    ifi_lastchange: timeval,
+}
+
+#[repr(C)]
+struct IfReqData {
+    ifr_name: [c_char; IFNAMSIZ],
+    ifr_data: *mut IfData,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct Sensor {
+    desc: [c_char; 32],
+    tv: timeval,
+    value: i64,
+    sensor_type: c_int,
+    status: c_int,
+    numt: c_int,
+    flags: c_int,
+}
 
 #[cfg_attr(
     feature = "serde",
@@ -76,7 +122,12 @@ impl From<DragonFlyCpuTime> for CpuTime {
     }
 }
 
+const IFNAMSIZ: usize = 16;
 const MNT_WAIT: c_int = 1;
+const SENSOR_TEMP: c_int = 0;
+const SENSOR_FINVALID: c_int = 0x0001;
+const SENSOR_FUNKNOWN: c_int = 0x0002;
+const SIOCGIFDATA: c_ulong = 0xc0206926;
 
 /// Read a single fixed-size sysctl value by name.
 ///
@@ -118,6 +169,73 @@ fn sysctl_buffer_len(name: &str) -> io::Result<usize> {
         return Err(io::Error::last_os_error());
     }
     Ok(len)
+}
+
+fn read_sensor(name: &str) -> io::Result<Sensor> {
+    unsafe { sysctl_scalar::<Sensor>(name) }
+}
+
+fn sensor_temp_celsius(sensor: Sensor) -> Option<f32> {
+    if sensor.sensor_type != SENSOR_TEMP || sensor.flags & (SENSOR_FINVALID | SENSOR_FUNKNOWN) != 0
+    {
+        return None;
+    }
+    Some((sensor.value as f64 / 1_000_000.0 - 273.15) as f32)
+}
+
+fn first_sensor_temp(prefix: &str) -> Option<f32> {
+    for dev in 0..16 {
+        for index in 0..16 {
+            let name = format!("hw.sensors.{}{}.temp{}", prefix, dev, index);
+            if let Ok(sensor) = read_sensor(&name) {
+                if let Some(temp) = sensor_temp_celsius(sensor) {
+                    return Some(temp);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn copy_interface_name(dst: &mut [c_char; IFNAMSIZ], interface: &str) -> io::Result<()> {
+    let bytes = interface.as_bytes();
+    if bytes.len() >= IFNAMSIZ {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "interface name is too long",
+        ));
+    }
+    for (idx, byte) in bytes.iter().enumerate() {
+        dst[idx] = *byte as c_char;
+    }
+    Ok(())
+}
+
+fn if_data(interface: &str) -> io::Result<IfData> {
+    let mut req = IfReqData {
+        ifr_name: [0; IFNAMSIZ],
+        ifr_data: ptr::null_mut(),
+    };
+    copy_interface_name(&mut req.ifr_name, interface)?;
+
+    let fd = unsafe { libc::socket(libc::AF_INET, libc::SOCK_DGRAM, 0) };
+    if fd < 0 {
+        return Err(io::Error::last_os_error());
+    }
+
+    let mut data: IfData = unsafe { mem::zeroed() };
+    req.ifr_data = &mut data;
+
+    let rc = unsafe { libc::ioctl(fd, SIOCGIFDATA, &mut req) };
+    let close_rc = unsafe { libc::close(fd) };
+    if rc != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    if close_rc != 0 {
+        return Err(io::Error::last_os_error());
+    }
+
+    Ok(data)
 }
 
 fn measure_cpu() -> io::Result<Vec<CpuTime>> {
@@ -272,7 +390,20 @@ impl Platform for PlatformImpl {
     }
 
     fn battery_life(&self) -> io::Result<BatteryLife> {
-        unsupported()
+        let life = match unsafe { sysctl_scalar::<c_long>("hw.acpi.battery.life") } {
+            Ok(life) => life,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => return unsupported(),
+            Err(err) => return Err(err),
+        };
+        let time = match unsafe { sysctl_scalar::<c_long>("hw.acpi.battery.time") } {
+            Ok(time) => time,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => return unsupported(),
+            Err(err) => return Err(err),
+        };
+        Ok(BatteryLife {
+            remaining_capacity: life as f32 / 100.0,
+            remaining_time: Duration::from_secs(time.max(0) as u64 * 60),
+        })
     }
 
     fn on_ac_power(&self) -> io::Result<bool> {
@@ -327,11 +458,24 @@ impl Platform for PlatformImpl {
         unix::networks()
     }
 
-    fn network_stats(&self, _interface: &str) -> io::Result<NetworkStats> {
-        unsupported()
+    fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
+        let data = if_data(interface)?;
+        Ok(NetworkStats {
+            rx_bytes: ByteSize::b(data.ifi_ibytes as u64),
+            tx_bytes: ByteSize::b(data.ifi_obytes as u64),
+            rx_packets: data.ifi_ipackets as u64,
+            tx_packets: data.ifi_opackets as u64,
+            rx_errors: data.ifi_ierrors as u64,
+            tx_errors: data.ifi_oerrors as u64,
+        })
     }
 
     fn cpu_temp(&self) -> io::Result<f32> {
+        for prefix in ["die", "coretemp", "amdtemp", "cpu", "acpitz", "lm"] {
+            if let Some(temp) = first_sensor_temp(prefix) {
+                return Ok(temp);
+            }
+        }
         unsupported()
     }
 
