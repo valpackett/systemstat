@@ -8,10 +8,6 @@
 //   * boot_time()     -- kern.boottime (uptime() falls out of the default impl)
 //   * mounts()        -- getmntinfo(3)
 //
-// Left as ErrorKind::Unsupported for now. These need route/devstat walking or
-// socket-table aggregation, and starship does not consume them:
-//   block_device_statistics, socket_stats
-
 use std::collections::BTreeMap;
 use std::{ffi, io, mem, ptr, slice};
 
@@ -74,6 +70,46 @@ struct Sensor {
     flags: c_int,
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct Devstat {
+    dev_links: *mut c_void,
+    device_number: u32,
+    device_name: [c_char; DEVSTAT_NAME_LEN],
+    unit_number: c_int,
+    bytes_read: u64,
+    bytes_written: u64,
+    bytes_freed: u64,
+    num_reads: u64,
+    num_writes: u64,
+    num_frees: u64,
+    num_other: u64,
+    busy_count: i32,
+    block_size: u32,
+    tag_types: [u64; 3],
+    dev_creation_time: timeval,
+    busy_time: timeval,
+    start_time: timeval,
+    last_comp_time: timeval,
+    flags: c_int,
+    device_type: c_int,
+    priority: c_int,
+}
+
+#[repr(C)]
+struct Devinfo {
+    devices: *mut Devstat,
+    mem_ptr: *mut u8,
+    generation: c_long,
+    numdevs: c_int,
+}
+
+#[repr(C)]
+struct Statinfo {
+    dinfo: *mut Devinfo,
+    busy_time: timeval,
+}
+
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -123,11 +159,13 @@ impl From<DragonFlyCpuTime> for CpuTime {
 }
 
 const IFNAMSIZ: usize = 16;
+const DEVSTAT_NAME_LEN: usize = 16;
 const MNT_WAIT: c_int = 1;
 const SENSOR_TEMP: c_int = 0;
 const SENSOR_FINVALID: c_int = 0x0001;
 const SENSOR_FUNKNOWN: c_int = 0x0002;
 const SIOCGIFDATA: c_ulong = 0xc0206926;
+const XINPCB_INP_AF_OFFSET: usize = 168;
 
 /// Read a single fixed-size sysctl value by name.
 ///
@@ -169,6 +207,30 @@ fn sysctl_buffer_len(name: &str) -> io::Result<usize> {
         return Err(io::Error::last_os_error());
     }
     Ok(len)
+}
+
+fn sysctl_bytes(name: &str) -> io::Result<Vec<u8>> {
+    let cname = ffi::CString::new(name).unwrap();
+    let mut len = sysctl_buffer_len(name)?;
+    if len == 0 {
+        return Ok(Vec::new());
+    }
+
+    let mut bytes = vec![0; len];
+    let rc = unsafe {
+        libc::sysctlbyname(
+            cname.as_ptr(),
+            bytes.as_mut_ptr() as *mut c_void,
+            &mut len,
+            ptr::null_mut(),
+            0,
+        )
+    };
+    if rc != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    bytes.truncate(len);
+    Ok(bytes)
 }
 
 fn read_sensor(name: &str) -> io::Result<Sensor> {
@@ -236,6 +298,113 @@ fn if_data(interface: &str) -> io::Result<IfData> {
     }
 
     Ok(data)
+}
+
+fn normalize_dragonfly_ipv6(addr: Ipv6Addr) -> Ipv6Addr {
+    let mut segments = addr.segments();
+    if segments[0] & 0xffc0 == 0xfe80 {
+        segments[1] = 0;
+        segments[2] = 0;
+        segments[3] = 0;
+    }
+    Ipv6Addr::new(
+        segments[0],
+        segments[1],
+        segments[2],
+        segments[3],
+        segments[4],
+        segments[5],
+        segments[6],
+        segments[7],
+    )
+}
+
+fn normalize_dragonfly_addr(addr: IpAddr) -> IpAddr {
+    match addr {
+        IpAddr::V6(addr) => IpAddr::V6(normalize_dragonfly_ipv6(addr)),
+        other => other,
+    }
+}
+
+fn normalize_dragonfly_networks(networks: BTreeMap<String, Network>) -> BTreeMap<String, Network> {
+    networks
+        .into_iter()
+        .map(|(name, mut network)| {
+            for addr in &mut network.addrs {
+                addr.addr = normalize_dragonfly_addr(addr.addr.clone());
+                addr.netmask = normalize_dragonfly_addr(addr.netmask.clone());
+            }
+            (name, network)
+        })
+        .collect()
+}
+
+fn devstat_name(devstat: &Devstat) -> String {
+    let name = cstr(&devstat.device_name);
+    format!("{}{}", name, devstat.unit_number)
+}
+
+fn sectors(bytes: u64, block_size: u32) -> usize {
+    if block_size == 0 {
+        0
+    } else {
+        (bytes / block_size as u64) as usize
+    }
+}
+
+fn timeval_millis(tv: timeval) -> usize {
+    (tv.tv_sec.max(0) as usize)
+        .saturating_mul(1000)
+        .saturating_add((tv.tv_usec.max(0) as usize) / 1000)
+}
+
+fn block_device_stats(devstat: &Devstat) -> BlockDeviceStats {
+    let busy_millis = timeval_millis(devstat.busy_time);
+    BlockDeviceStats {
+        name: devstat_name(devstat),
+        read_ios: devstat.num_reads as usize,
+        read_merges: 0,
+        read_sectors: sectors(devstat.bytes_read, devstat.block_size),
+        read_ticks: 0,
+        write_ios: devstat.num_writes as usize,
+        write_merges: 0,
+        write_sectors: sectors(devstat.bytes_written, devstat.block_size),
+        write_ticks: 0,
+        in_flight: devstat.busy_count.max(0) as usize,
+        io_ticks: busy_millis,
+        time_in_queue: busy_millis,
+    }
+}
+
+fn pcb_counts(name: &str) -> io::Result<(usize, usize)> {
+    let bytes = match sysctl_bytes(name) {
+        Ok(bytes) => bytes,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok((0, 0)),
+        Err(err) => return Err(err),
+    };
+    let mut offset = 0;
+    let mut ipv4 = 0;
+    let mut ipv6 = 0;
+    while offset + mem::size_of::<usize>() <= bytes.len() {
+        let mut len_bytes = [0; mem::size_of::<usize>()];
+        len_bytes.copy_from_slice(&bytes[offset..offset + mem::size_of::<usize>()]);
+        let entry_len = usize::from_ne_bytes(len_bytes);
+        if entry_len == 0 || offset + entry_len > bytes.len() {
+            break;
+        }
+
+        let family = bytes
+            .get(offset + XINPCB_INP_AF_OFFSET)
+            .copied()
+            .unwrap_or_default() as c_int;
+        match family {
+            libc::AF_INET => ipv4 += 1,
+            libc::AF_INET6 => ipv6 += 1,
+            _ => {}
+        }
+        offset += entry_len;
+    }
+    Ok((ipv4, ipv6))
 }
 
 fn measure_cpu() -> io::Result<Vec<CpuTime>> {
@@ -417,12 +586,17 @@ impl Platform for PlatformImpl {
     }
 
     fn mounts(&self) -> io::Result<Vec<Filesystem>> {
-        let mut buf: *mut statfs = ptr::null_mut();
-        let count = unsafe { getmntinfo(&mut buf, MNT_WAIT) };
+        let count = unsafe { getfsstat(ptr::null_mut(), 0, MNT_WAIT) };
         if count < 1 {
             return Err(io::Error::last_os_error());
         }
-        let entries = unsafe { slice::from_raw_parts(buf, count as usize) };
+        let mut entries: Vec<statfs> = (0..count).map(|_| unsafe { mem::zeroed() }).collect();
+        let len = entries.len() * mem::size_of::<statfs>();
+        let count = unsafe { getfsstat(entries.as_mut_ptr(), len as c_long, MNT_WAIT) };
+        if count < 1 {
+            return Err(io::Error::last_os_error());
+        }
+        entries.truncate(count as usize);
 
         Ok(entries
             .iter()
@@ -451,11 +625,30 @@ impl Platform for PlatformImpl {
     }
 
     fn block_device_statistics(&self) -> io::Result<BTreeMap<String, BlockDeviceStats>> {
-        unsupported()
+        let mut devinfo: Devinfo = unsafe { mem::zeroed() };
+        let mut statinfo = Statinfo {
+            dinfo: &mut devinfo,
+            busy_time: unsafe { mem::zeroed() },
+        };
+        let rc = unsafe { getdevs(&mut statinfo) };
+        if rc < 0 {
+            return Err(io::Error::new(io::ErrorKind::Other, "getdevs() failed"));
+        }
+
+        let devices = unsafe { slice::from_raw_parts(devinfo.devices, devinfo.numdevs as usize) };
+        let stats = devices
+            .iter()
+            .map(|devstat| {
+                let stats = block_device_stats(devstat);
+                (stats.name.clone(), stats)
+            })
+            .collect();
+        unsafe { libc::free(devinfo.mem_ptr as *mut c_void) };
+        Ok(stats)
     }
 
     fn networks(&self) -> io::Result<BTreeMap<String, Network>> {
-        unix::networks()
+        unix::networks().map(normalize_dragonfly_networks)
     }
 
     fn network_stats(&self, interface: &str) -> io::Result<NetworkStats> {
@@ -480,12 +673,25 @@ impl Platform for PlatformImpl {
     }
 
     fn socket_stats(&self) -> io::Result<SocketStats> {
-        unsupported()
+        let (tcp_sockets_in_use, tcp6_sockets_in_use) = pcb_counts("net.inet.tcp.pcblist")?;
+        let (udp_sockets_in_use, udp6_sockets_in_use) = pcb_counts("net.inet.udp.pcblist")?;
+        Ok(SocketStats {
+            tcp_sockets_in_use,
+            tcp_sockets_orphaned: 0,
+            udp_sockets_in_use,
+            tcp6_sockets_in_use,
+            udp6_sockets_in_use,
+        })
     }
+}
+
+#[link(name = "devstat")]
+extern "C" {
+    fn getdevs(stats: *mut Statinfo) -> c_int;
 }
 
 #[link(name = "c")]
 extern "C" {
     fn getpagesize() -> c_int;
-    fn getmntinfo(mntbufp: *mut *mut statfs, flags: c_int) -> c_int;
+    fn getfsstat(buf: *mut statfs, bufsize: c_long, flags: c_int) -> c_int;
 }
