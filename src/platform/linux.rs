@@ -40,6 +40,31 @@ fn time(on_ac: bool, charge_full: i32, charge_now: i32, current_now: i32) -> Dur
     }
 }
 
+// we only care about tdie temp, rather than being able to read individual core temp
+//  if we want core temps, we should search "coretemp", "k8temp", "k10temp"
+const DRIVERS: [&str; 2] = ["k10temp", "zenpower"];
+fn sys_hwmon() -> io::Result<String> {
+    let dirs: Vec<String> = fs::read_dir("/sys/class/hwmon/")?
+        .filter_map(|x| x.ok())
+        .filter_map(|x| x.file_name().into_string().ok())
+        .collect();
+
+    if dirs.is_empty() {
+        return Err(io::Error::new(std::io::ErrorKind::NotFound, "/sys/class/hwmon exists but is empty... huh?"))
+    }
+
+    for dir in dirs.clone() {
+        let base_path = "/sys/class/hwmon/".to_string() + dir.as_str();
+        if let Ok(driver) = read_file((base_path.clone() + "/name").as_str()) {
+            if DRIVERS.contains(&driver.as_str().trim()) {
+                return Ok(read_file((base_path + "/temp1_input").as_str())?)
+            }
+        }
+    }
+
+    Err(io::Error::new(std::io::ErrorKind::NotFound, "No compatible CPU temp drivers found in hwmon"))
+}
+
 pub struct PlatformImpl;
 
 /// An implementation of `Platform` for Linux.
@@ -187,7 +212,7 @@ impl Platform for PlatformImpl {
 
     fn cpu_temp(&self) -> io::Result<f32> {
         read_file("/sys/class/thermal/thermal_zone0/temp")
-            .or(read_file("/sys/class/hwmon/hwmon0/temp1_input"))
+            .or(sys_hwmon())
             .and_then(|data| match data.trim().parse::<f32>() {
                 Ok(x) => Ok(x),
                 Err(_) => Err(io::Error::new(
