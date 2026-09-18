@@ -4,6 +4,9 @@ use crate::reader_utils::read_file;
 use super::unix;
 use crate::data::*;
 use libc::{c_long, c_schar, c_uint, c_ulong, c_ushort};
+use std::cell::RefCell;
+use std::io::Read;
+use std::path::Path;
 use std::str;
 use std::time::Duration;
 use std::{fs, io, mem, path};
@@ -42,37 +45,49 @@ fn time(on_ac: bool, charge_full: i32, charge_now: i32, current_now: i32) -> Dur
 
 // we only care about tdie temp, rather than being able to read individual core temp
 //  if we want core temps, we should search "coretemp", "k8temp", "k10temp"
-const DRIVERS: [&str; 2] = ["k10temp", "zenpower"];
-fn sys_hwmon() -> io::Result<String> {
-    let dirs: Vec<String> = fs::read_dir("/sys/class/hwmon/")?
-        .filter_map(|x| x.ok())
-        .filter_map(|x| x.file_name().into_string().ok())
-        .collect();
+const DRIVERS: [&str; 3] = [
+    // Intel
+    "x86_pkg_temp",
+    // AMD
+    "k10temp",
+    "zenpower"
+];
+fn find_cpu_temp_path() -> io::Result<String> {
+    try_search_path("/sys/class/thermal/", "/type", "/temp")
+        .or(try_search_path("/sys/class/hwmon/", "/name", "/temp1_input"))
 
-    if dirs.is_empty() {
-        return Err(io::Error::new(std::io::ErrorKind::NotFound, "/sys/class/hwmon exists but is empty... huh?"))
-    }
+}
+fn try_search_path(search_dir: &str, driver_file: &str, temp_file: &str) -> io::Result<String> {
+    for entry in fs::read_dir(search_dir)? {
+        let Ok(dir_entry) = entry else { continue };
+        let Some(dir) = dir_entry.file_name().into_string().ok() else { continue };
 
-    for dir in dirs.clone() {
-        let base_path = "/sys/class/hwmon/".to_string() + dir.as_str();
-        if let Ok(driver) = read_file((base_path.clone() + "/name").as_str()) {
+        let base_path = search_dir.to_string() + dir.as_str();
+        if let Ok(driver) = read_file((base_path.clone() + driver_file).as_str()) {
             if DRIVERS.contains(&driver.as_str().trim()) {
-                return Ok(read_file((base_path + "/temp1_input").as_str())?)
+                return Ok(base_path + temp_file)
             }
         }
     }
 
-    Err(io::Error::new(std::io::ErrorKind::NotFound, "No compatible CPU temp drivers found in hwmon"))
+    Err(io::Error::new(
+        std::io::ErrorKind::NotFound,
+        format!("No compatible CPU temp drivers found in {}", search_dir)
+    ))
 }
 
-pub struct PlatformImpl;
+pub struct PlatformImpl {
+    cpu_temp_file: RefCell<Option<fs::File>>,
+}
 
 /// An implementation of `Platform` for Linux.
 /// See `Platform` for documentation.
 impl Platform for PlatformImpl {
     #[inline(always)]
     fn new() -> Self {
-        PlatformImpl
+        PlatformImpl {
+            cpu_temp_file: RefCell::new(None)
+        }
     }
 
     fn cpu_load(&self) -> io::Result<DelayedMeasurement<Vec<CPULoad>>> {
@@ -211,16 +226,31 @@ impl Platform for PlatformImpl {
     }
 
     fn cpu_temp(&self) -> io::Result<f32> {
-        read_file("/sys/class/thermal/thermal_zone0/temp")
-            .or(sys_hwmon())
-            .and_then(|data| match data.trim().parse::<f32>() {
-                Ok(x) => Ok(x),
-                Err(_) => Err(io::Error::new(
+        let mut cpu_temp_file = self.cpu_temp_file.borrow_mut();
+        if cpu_temp_file.is_none() {
+            let cpu_temp_path = find_cpu_temp_path()?;
+            *cpu_temp_file = Some(fs::File::open(Path::new(&cpu_temp_path))?);
+        }
+
+        let mut data = String::new();
+        match cpu_temp_file.as_ref().unwrap().read_to_string(&mut data) {
+            Ok(_) => {},
+            Err(_) => {
+                return Err(io::Error::new(
                     io::ErrorKind::Other,
-                    "Could not parse float",
-                )),
-            })
-            .map(|num| num / 1000.0)
+                    "Could not read cpu temp file",
+                ))
+            },
+        }
+        let value = match data.trim().parse::<f32>() {
+            Ok(x) => x,
+            Err(_) => return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "Could not parse float",
+            )),
+        };
+
+        Ok(value / 1000.0)
     }
 
     fn socket_stats(&self) -> io::Result<SocketStats> {
