@@ -1,8 +1,8 @@
 use super::common::*;
-use crate::platform::procfs;
-use crate::reader_utils::read_file;
 use super::unix;
 use crate::data::*;
+use crate::platform::procfs;
+use crate::reader_utils::read_file;
 use libc::{c_long, c_schar, c_uint, c_ulong, c_ushort};
 use std::cell::RefCell;
 use std::io::Read;
@@ -56,27 +56,33 @@ const DRIVERS: [&str; 6] = [
     "cpuss-0-0-thermal",
     "cpuss0-top-thermal",
 ];
-fn find_cpu_temp_path() -> io::Result<String> {
-    try_search_path("/sys/class/thermal/", "/type", "/temp")
-        .or(try_search_path("/sys/class/hwmon/", "/name", "/temp1_input"))
 
+fn find_cpu_temp_path() -> io::Result<String> {
+    try_search_path("/sys/class/thermal/", "/type", "/temp").or(try_search_path(
+        "/sys/class/hwmon/",
+        "/name",
+        "/temp1_input",
+    ))
 }
+
 fn try_search_path(search_dir: &str, driver_file: &str, temp_file: &str) -> io::Result<String> {
     for entry in fs::read_dir(search_dir)? {
         let Ok(dir_entry) = entry else { continue };
-        let Some(dir) = dir_entry.file_name().into_string().ok() else { continue };
+        let Some(dir) = dir_entry.file_name().into_string().ok() else {
+            continue;
+        };
 
         let base_path = search_dir.to_string() + dir.as_str();
         if let Ok(driver) = read_file((base_path.clone() + driver_file).as_str()) {
             if DRIVERS.contains(&driver.as_str().trim()) {
-                return Ok(base_path + temp_file)
+                return Ok(base_path + temp_file);
             }
         }
     }
 
     Err(io::Error::new(
         std::io::ErrorKind::NotFound,
-        format!("No compatible CPU temp drivers found in {}", search_dir)
+        format!("No compatible CPU temp drivers found in {}", search_dir),
     ))
 }
 
@@ -90,7 +96,7 @@ impl Platform for PlatformImpl {
     #[inline(always)]
     fn new() -> Self {
         PlatformImpl {
-            cpu_temp_file: RefCell::new(None)
+            cpu_temp_file: RefCell::new(None),
         }
     }
 
@@ -238,20 +244,22 @@ impl Platform for PlatformImpl {
 
         let mut data = String::new();
         match cpu_temp_file.as_ref().unwrap().read_to_string(&mut data) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(_) => {
                 return Err(io::Error::new(
                     io::ErrorKind::Other,
                     "Could not read cpu temp file",
                 ))
-            },
+            }
         }
         let value = match data.trim().parse::<f32>() {
             Ok(x) => x,
-            Err(_) => return Err(io::Error::new(
-                io::ErrorKind::Other,
-                "Could not parse float",
-            )),
+            Err(_) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "Could not parse float",
+                ))
+            }
         };
 
         Ok(value / 1000.0)
