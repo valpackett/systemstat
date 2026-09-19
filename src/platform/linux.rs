@@ -45,12 +45,16 @@ fn time(on_ac: bool, charge_full: i32, charge_now: i32, current_now: i32) -> Dur
 
 // we only care about tdie temp, rather than being able to read individual core temp
 //  if we want core temps, we should search "coretemp", "k8temp", "k10temp"
-const DRIVERS: [&str; 3] = [
+const DRIVERS: [&str; 6] = [
     // Intel
     "x86_pkg_temp",
     // AMD
     "k10temp",
-    "zenpower"
+    "zenpower",
+    // Qualcomm
+    "cpuss0-thermal",
+    "cpuss-0-0-thermal",
+    "cpuss0-top-thermal",
 ];
 fn find_cpu_temp_path() -> io::Result<String> {
     try_search_path("/sys/class/thermal/", "/type", "/temp")
