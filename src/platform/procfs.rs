@@ -4,7 +4,6 @@ use crate::data::*;
 use libc::statvfs;
 use libc::c_char;
 use nom::bytes::complete::{tag, take_till, take_until};
-use nom::character::is_space;
 use nom::character::complete::{digit1, multispace0, not_line_ending, space1};
 use nom::combinator::{complete, map, map_res, opt, verify};
 use nom::error::ParseError;
@@ -231,7 +230,13 @@ pub fn memory_stats() -> io::Result<BTreeMap<String, ByteSize>> {
 
 // Parse a single word
 fn word_s(input: &str) -> IResult<&str, &str> {
-    take_till(|c| is_space(c as u8))(input)
+    take_till(|c| c == ' ' || c == '\t')(input)
+}
+
+#[test]
+fn test_cjk() {
+    // 素 (U+7D20)'s low byte is a space
+    assert!(word_s("/mnt/素材硬盘 ext4") == Ok((" ext4", "/mnt/素材硬盘")));
 }
 
 /// `/proc/mounts` data
@@ -359,14 +364,18 @@ fn stat_mount(mount: ProcMountsData) -> io::Result<Filesystem> {
     let mut info: statvfs = unsafe { mem::zeroed() };
     let target = format!("{}\0", mount.target);
     let result = unsafe { statvfs(target.as_ptr() as *const c_char, &mut info) };
+    let frsize = match info.f_frsize {
+        0 => info.f_bsize,
+        frsize => frsize,
+    };
     match result {
         0 => Ok(Filesystem {
             files: (info.f_files as usize).saturating_sub(info.f_ffree as usize),
             files_total: info.f_files as usize,
             files_avail: info.f_favail as usize,
-            free: ByteSize::b(info.f_bfree as u64 * info.f_bsize as u64),
-            avail: ByteSize::b(info.f_bavail as u64 * info.f_bsize as u64),
-            total: ByteSize::b(info.f_blocks as u64 * info.f_bsize as u64),
+            free: ByteSize::b(info.f_bfree as u64 * frsize as u64),
+            avail: ByteSize::b(info.f_bavail as u64 * frsize as u64),
+            total: ByteSize::b(info.f_blocks as u64 * frsize as u64),
             name_max: info.f_namemax as usize,
             fs_type: mount.fstype,
             fs_mounted_from: mount.source,
@@ -401,7 +410,7 @@ pub fn mount_at<P: AsRef<path::Path>>(path: P) -> io::Result<Filesystem> {
             .and_then(|mounts| {
                 mounts
                     .into_iter()
-                    .find(|mount| path::Path::new(&mount.target) == path.as_ref())
+                    .rfind(|mount| path::Path::new(&mount.target) == path.as_ref())
                     .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No such mount"))
             })
             .and_then(stat_mount)
