@@ -50,15 +50,20 @@ fn parse_addr(aptr: *const sockaddr) -> IpAddr {
         AF_INET => IpAddr::V4(Ipv4Addr::new(addr.sa_data[2] as u8, addr.sa_data[3] as u8,
                                             addr.sa_data[4] as u8, addr.sa_data[5] as u8)),
         AF_INET6 => {
-            // This is horrible.
             let addr6: *const sockaddr_in6 = unsafe { mem::transmute(aptr) };
-            let mut a: [u8; 16] = unsafe { (*addr6).sin6_addr.s6_addr };
-            a[..].reverse();
-            let a: [u16; 8] = unsafe { mem::transmute(a) };
-            IpAddr::V6(Ipv6Addr::new(a[7], a[6], a[5], a[4], a[3], a[2], a[1], a[0]))
+            IpAddr::V6(Ipv6Addr::from(unsafe { (*addr6).sin6_addr.s6_addr }))
         },
         _ => IpAddr::Unsupported,
     }
+}
+
+#[test]
+fn test_parse_addr_v6() {
+    let mut addr: sockaddr_in6 = unsafe { mem::zeroed() };
+    addr.sin6_family = AF_INET6 as _;
+    addr.sin6_addr.s6_addr = [0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+    let parsed = parse_addr(&addr as *const sockaddr_in6 as *const sockaddr);
+    assert!(parsed == IpAddr::V6(Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 1)));
 }
 
 #[link(name = "c")]
