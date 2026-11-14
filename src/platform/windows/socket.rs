@@ -2,7 +2,6 @@ use winapi::ctypes::c_ulong;
 use winapi::shared::winerror::ERROR_SUCCESS;
 use winapi::shared::ws2def::{AF_INET6, AF_INET};
 
-use super::last_os_error;
 use crate::data::*;
 
 use std::io;
@@ -39,10 +38,17 @@ struct UdpStats {
 
 #[link(name = "iphlpapi")]
 extern "system" {
-    // https://msdn.microsoft.com/en-us/library/aa366023(v=vs.85).aspx
+    // https://learn.microsoft.com/en-us/windows/win32/api/iphlpapi/nf-iphlpapi-gettcpstatisticsex
     fn GetTcpStatisticsEx(pStats: *mut TcpStats, dwFamily: c_ulong) -> c_ulong;
-    // https://msdn.microsoft.com/en-us/library/aa366031(v=vs.85).aspx
     fn GetUdpStatisticsEx(pStats: *mut UdpStats, dwFamily: c_ulong) -> c_ulong;
+}
+
+fn check(code: c_ulong) -> io::Result<()> {
+    if code == ERROR_SUCCESS {
+        Ok(())
+    } else {
+        Err(io::Error::from_raw_os_error(code as i32))
+    }
 }
 
 pub fn get() -> io::Result<SocketStats> {
@@ -51,19 +57,11 @@ pub fn get() -> io::Result<SocketStats> {
     let mut udp4 = UdpStats::default();
     let mut udp6 = UdpStats::default();
 
-    if ERROR_SUCCESS != unsafe { GetTcpStatisticsEx(&mut tcp4 as *mut _, AF_INET as c_ulong) } {
-        last_os_error()?;
-    }
-    if ERROR_SUCCESS != unsafe { GetTcpStatisticsEx(&mut tcp6 as *mut _, AF_INET6 as c_ulong) } {
-        last_os_error()?;
-    }
+    check(unsafe { GetTcpStatisticsEx(&mut tcp4 as *mut _, AF_INET as c_ulong) })?;
+    check(unsafe { GetTcpStatisticsEx(&mut tcp6 as *mut _, AF_INET6 as c_ulong) })?;
 
-    if ERROR_SUCCESS != unsafe { GetUdpStatisticsEx(&mut udp4 as *mut _, AF_INET as c_ulong) } {
-        last_os_error()?;
-    }
-    if ERROR_SUCCESS != unsafe { GetUdpStatisticsEx(&mut udp6 as *mut _, AF_INET6 as c_ulong) } {
-        last_os_error()?;
-    }
+    check(unsafe { GetUdpStatisticsEx(&mut udp4 as *mut _, AF_INET as c_ulong) })?;
+    check(unsafe { GetUdpStatisticsEx(&mut udp6 as *mut _, AF_INET6 as c_ulong) })?;
 
     // println!("4: {:?}", tcp4 );
     // println!("6: {:?}", tcp6 );
