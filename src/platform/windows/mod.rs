@@ -223,6 +223,10 @@ impl Platform for PlatformImpl {
                 }
             }
 
+            for cpu in ret.iter_mut() {
+                cpu.system = (cpu.system - cpu.interrupt).max(0.0);
+            }
+
             Ok(ret)
         })))
     }
@@ -260,9 +264,14 @@ impl Platform for PlatformImpl {
                 "Battery status unknown",
             ));
         }
+        let lifetime = if status.BatteryLifeTime == DWORD::MAX {
+            0
+        } else {
+            status.BatteryLifeTime
+        };
         Ok(BatteryLife {
             remaining_capacity: status.BatteryLifePercent as f32 / 100.0,
-            remaining_time: Duration::from_secs(status.BatteryLifeTime as u64),
+            remaining_time: Duration::from_secs(lifetime as u64),
         })
     }
 
