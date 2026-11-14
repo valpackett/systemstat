@@ -241,14 +241,36 @@ struct ProcMountsData {
     fstype: String,
 }
 
+// Decode the octal escapes the kernel uses in `/proc/mounts`, e.g. `\040` for a space
+fn unescape(input: &str) -> String {
+    let mut res = String::with_capacity(input.len());
+    let mut rest = input;
+    while let Some((head, tail)) = rest.split_once('\\') {
+        res.push_str(head);
+        match tail.as_bytes() {
+            // Only ASCII characters are escaped
+            [a @ b'0'..=b'1', b @ b'0'..=b'7', c @ b'0'..=b'7', ..] => {
+                res.push(char::from((a - b'0') * 64 + (b - b'0') * 8 + (c - b'0')));
+                rest = &tail[3..];
+            }
+            _ => {
+                res.push('\\');
+                rest = tail;
+            }
+        }
+    }
+    res.push_str(rest);
+    res
+}
+
 // Parse a `/proc/mounts` line to get a mountpoint
 fn proc_mounts_line(input: &str) -> IResult<&str, ProcMountsData> {
     map(
         tuple((ws(word_s), ws(word_s), ws(word_s))),
         |(source, target, fstype)| ProcMountsData {
-            source: source.to_string(),
-            target: target.to_string(),
-            fstype: fstype.to_string(),
+            source: unescape(source),
+            target: unescape(target),
+            fstype: unescape(fstype),
         },
     )(input)
 }
@@ -309,6 +331,27 @@ tmpfs /dev/shm tmpfs rw,nosuid,nodev,inode64 0 0
     assert!(root.source == "/dev/nvme0n1p3");
     assert!(root.target == "/");
     assert!(root.fstype == "btrfs");
+}
+
+#[test]
+fn test_proc_mounts_escapes() {
+    let test_input = r#"C:\134 /mnt/c 9p rw,noatime,aname=drvfs;path=C:\;uid=0;gid=0;symlinkroot=/mnt/,cache=0x5,access=client,msize=65536,trans=fd,rfd=5,wfd=5 0 0
+/dev/sdb1 /mnt/my\040drive ext4 rw,relatime 0 0
+//nas/my\040share /mnt/tab\011newline\012backslash\134 cifs rw,relatime 0 0"#;
+    let mounts = proc_mounts(test_input).unwrap().1;
+    assert!(mounts.len() == 3);
+    assert!(mounts[0].source == r"C:\");
+    assert!(mounts[0].target == "/mnt/c");
+    assert!(mounts[1].target == "/mnt/my drive");
+    assert!(mounts[2].source == "//nas/my share");
+    assert!(mounts[2].target == "/mnt/tab\tnewline\nbackslash\\");
+    assert!(mounts[2].fstype == "cifs");
+
+    assert!(unescape(r"\043tmp") == "#tmp");
+    // An escaped backslash does not start another escape
+    assert!(unescape(r"\134040") == r"\040");
+    // Anything else after a backslash is kept as is
+    assert!(unescape(r"\04 \08x \777 \") == r"\04 \08x \777 \");
 }
 
 /// Stat a mountpoint to gather filesystem statistics
